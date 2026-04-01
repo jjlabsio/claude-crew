@@ -23,6 +23,12 @@
     "README.md",
     "LICENSE"
   ],
+  "scripts": {
+    "release": "bash scripts/release.sh"
+  },
+  "devDependencies": {
+    "changelogen": "^0.6.2"
+  },
   "publishConfig": {
     "access": "public"
   }
