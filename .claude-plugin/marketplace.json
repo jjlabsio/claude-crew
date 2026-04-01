@@ -1,0 +1,31 @@
+{
+  "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
+  "name": "claude-crew",
+  "description": "1인 SaaS 개발자를 위한 멀티 에이전트 오케스트레이션 — 개발, 마케팅, 일정을 한 대화에서 통합 관리",
+  "owner": {
+    "name": "Jaejin Song",
+    "email": "wowlxx28@gmail.com"
+  },
+  "plugins": [
+    {
+      "name": "claude-crew",
+      "source": "./",
+      "description": "오케스트레이터 + PM, 플래너, 개발, QA, 마케팅 에이전트 팀으로 단일 제품의 개발과 마케팅을 통합 관리",
+      "version": "0.1.0",
+      "author": {
+        "name": "Jaejin Song",
+        "email": "wowlxx28@gmail.com"
+      },
+      "repository": "https://github.com/jjlabsio/claude-crew",
+      "license": "MIT",
+      "keywords": [
+        "multi-agent",
+        "orchestration",
+        "solo-developer",
+        "marketing",
+        "planning"
+      ],
+      "category": "workflow"
+    }
+  ]
+}
