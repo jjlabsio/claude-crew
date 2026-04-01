@@ -6,8 +6,17 @@
 
 ## 설치
 
-```bash
+Claude Code에서:
+
+```
+/plugin marketplace add https://github.com/jjlabsio/claude-crew
 /plugin install claude-crew
+```
+
+또는 로컬에서 직접:
+
+```
+/plugin install /path/to/claude-crew
 ```
 
 ## 사용
