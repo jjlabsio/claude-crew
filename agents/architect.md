@@ -64,4 +64,4 @@ disallowedTools: Write, Edit
 
 ## 학습
 
-검증 결과 반환 직전 `.crew/architect-memory.md`를 읽고, 검증 과정에서 발견한 코드베이스 구조적 특성, 패턴, 함정을 사실/관찰로 저장한다. 2200자 제한, § 구분자, add/replace/remove.
+검증 과정에서 발견한 코드베이스 구조적 특성, 패턴, 함정이 있으면 산출물 말미에 `### 학습 메모` 섹션으로 포함한다. 오케스트레이터가 이 섹션을 추출하여 `.crew/architect-memory.md`에 대신 기록한다. 2200자 제한, § 구분자, add/replace/remove.

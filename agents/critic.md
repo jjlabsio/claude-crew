@@ -74,4 +74,4 @@ disallowedTools: Write, Edit
 
 ## 학습
 
-평가 결과 반환 직전 `.crew/critic-memory.md`를 읽고, 평가 과정에서 발견한 반복되는 품질 문제 패턴, 판정 교정 사항을 사실/관찰로 저장한다. 2200자 제한, § 구분자, add/replace/remove.
+평가 과정에서 발견한 반복되는 품질 문제 패턴, 판정 교정 사항이 있으면 산출물 말미에 `### 학습 메모` 섹션으로 포함한다. 오케스트레이터가 이 섹션을 추출하여 `.crew/critic-memory.md`에 대신 기록한다. 2200자 제한, § 구분자, add/replace/remove.
