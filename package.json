@@ -23,9 +23,7 @@
     "README.md",
     "LICENSE"
   ],
-  "scripts": {
-    "release": "bash scripts/release.sh"
-  },
+  "scripts": {},
   "devDependencies": {
     "changelogen": "^0.6.2"
   },

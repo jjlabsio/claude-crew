@@ -1,0 +1,91 @@
+name: Release
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    # Skip if the commit was made by the release bot itself
+    if: "!contains(github.event.head_commit.message, 'chore(release):')"
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          registry-url: https://registry.npmjs.org
+
+      - run: npm install
+
+      # Check if there are releasable commits since last tag
+      - name: Check for releasable changes
+        id: check
+        run: |
+          LAST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
+          if [ -z "$LAST_TAG" ]; then
+            echo "has_changes=true" >> "$GITHUB_OUTPUT"
+          else
+            COMMITS=$(git log "$LAST_TAG"..HEAD --oneline --grep="^feat" --grep="^fix" --grep="^perf" --grep="^refactor" --extended-regexp 2>/dev/null | head -1)
+            if [ -n "$COMMITS" ]; then
+              echo "has_changes=true" >> "$GITHUB_OUTPUT"
+            else
+              echo "has_changes=false" >> "$GITHUB_OUTPUT"
+            fi
+          fi
+
+      - name: Generate changelog and bump version
+        if: steps.check.outputs.has_changes == 'true'
+        run: npx changelogen --bump --no-commit --no-tag
+
+      - name: Read new version
+        if: steps.check.outputs.has_changes == 'true'
+        id: version
+        run: echo "version=$(node -p "require('./package.json').version")" >> "$GITHUB_OUTPUT"
+
+      - name: Sync version to plugin files
+        if: steps.check.outputs.has_changes == 'true'
+        run: |
+          node -e "
+          const fs = require('fs');
+          const version = '${{ steps.version.outputs.version }}';
+          const files = ['.claude-plugin/plugin.json', '.claude-plugin/marketplace.json'];
+          for (const file of files) {
+            const data = JSON.parse(fs.readFileSync(file, 'utf8'));
+            data.version = version;
+            if (data.plugins) {
+              data.plugins[0].version = version;
+            }
+            fs.writeFileSync(file, JSON.stringify(data, null, 2) + '\n');
+            console.log('  Synced ' + file);
+          }
+          "
+
+      - name: Commit and tag
+        if: steps.check.outputs.has_changes == 'true'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "chore(release): v${{ steps.version.outputs.version }}"
+          git tag "v${{ steps.version.outputs.version }}"
+          git push --follow-tags
+
+      - name: Create GitHub Release
+        if: steps.check.outputs.has_changes == 'true'
+        run: npx changelogen gh release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Publish to npm
+        if: steps.check.outputs.has_changes == 'true'
+        run: npm publish
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
