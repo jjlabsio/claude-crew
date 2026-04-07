@@ -14,8 +14,12 @@ description: 개발 에이전트와 직접 대화하며 구현 진행
 
 ## 작업 절차
 
-### Phase 1: 환경 준비
-1. main 최신화 → 워크트리 생성 (프로젝트와 같은 레벨, `{project}-worktree-feat-{task-id}`) → env 복사
+### Phase 1: 환경 준비 (필수 — 절대 건너뛰지 않는다)
+1. **워크트리 생성은 필수다.** main 브랜치에서 직접 작업하지 않는다.
+   - `git fetch origin && git checkout main && git pull`
+   - 프로젝트와 같은 레벨에 워크트리 생성: `git worktree add ../{project}-worktree-feat-{task-id} -b feat/{task-id}`
+   - 워크트리 디렉토리로 이동하여 이후 모든 작업을 수행한다
+   - `.env*` 등 환경 파일 복사
 2. `.crew/plans/{task-id}.md`의 명세를 읽는다
 
 ### Phase 2: 스프린트 계약 협상
