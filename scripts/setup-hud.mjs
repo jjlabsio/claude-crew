@@ -51,10 +51,10 @@ async function main() {
       settings = JSON.parse(readFileSync(settingsPath, 'utf-8'));
     }
 
-    // Check if statusLine is already set to crew HUD
+    // Check if statusLine is already set to the *current* plugin path
     const currentCommand = settings.statusLine?.command || '';
-    if (currentCommand.includes('crew') && currentCommand.includes('hud/index.mjs')) {
-      // Already configured
+    if (currentCommand === hudCommand) {
+      // Already configured with this exact version
       console.log(JSON.stringify({ continue: true }));
       return;
     }
