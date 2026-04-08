@@ -290,7 +290,10 @@ function parseTranscript(transcriptPath) {
       if (entry.type === 'tool_result') {
         const toolUseId = entry.tool_use_id;
         if (toolUseId && agentMap.has(toolUseId)) {
-          agentMap.get(toolUseId).status = 'completed';
+          const agent = agentMap.get(toolUseId);
+          agent.status = 'completed';
+          const ts = entry.timestamp || lastTimestamp;
+          if (ts) agent.endTime = new Date(ts);
         }
       }
       if (entry.type === 'user') {
@@ -300,8 +303,10 @@ function parseTranscript(transcriptPath) {
             if (block.type === 'tool_result') {
               const toolUseId = block.tool_use_id;
               if (toolUseId && agentMap.has(toolUseId)) {
-                agentMap.get(toolUseId).status = 'completed';
-              }
+                const agent = agentMap.get(toolUseId);
+                agent.status = 'completed';
+                const ts = entry.timestamp || lastTimestamp;
+                if (ts) agent.endTime = new Date(ts);
             }
           }
         }
@@ -336,14 +341,18 @@ function shortModelName(model) {
 // ---------------------------------------------------------------------------
 // Agent duration formatting
 // ---------------------------------------------------------------------------
-function formatAgentDuration(startTime) {
-  if (!startTime) return '?';
-  const ms = Date.now() - startTime.getTime();
+function formatAgentDuration(startTime, endTime) {
+  if (!startTime) return '';
+  const ms = (endTime ?? new Date()).getTime() - startTime.getTime();
+  if (ms < 1000) return '<1s';
   const seconds = Math.floor(ms / 1000);
-  const minutes = Math.floor(seconds / 60);
-  if (seconds < 10) return '';
   if (seconds < 60) return `${seconds}s`;
-  return `${minutes}m`;
+  const minutes = Math.floor(seconds / 60);
+  const secs = seconds % 60;
+  if (minutes < 60) return `${minutes}m${secs}s`;
+  const hours = Math.floor(minutes / 60);
+  const mins = minutes % 60;
+  return `${hours}h${mins}m`;
 }
 
 // ---------------------------------------------------------------------------
@@ -366,7 +375,7 @@ function renderAgentsMultiLine(agents, maxLines = 5) {
     const rawType = a.type.includes(':') ? a.type.split(':').pop() : a.type;
     const name = rawType.padEnd(7);
     const model = shortModelName(a.model).padEnd(8);
-    const duration = formatAgentDuration(a.startTime).padStart(4);
+    const duration = formatAgentDuration(a.startTime, a.endTime).padStart(6);
     const desc = a.description.length > 40 ? a.description.slice(0, 37) + '...' : a.description;
 
     detailLines.push(
