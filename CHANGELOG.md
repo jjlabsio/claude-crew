@@ -1,6 +1,18 @@
 # Changelog
 
 
+## v0.1.15
+
+[compare changes](https://github.com/jjlabsio/claude-crew/compare/v0.1.14...v0.1.15)
+
+### 🚀 Enhancements
+
+- **hud:** Track agent endTime and show accurate elapsed duration ([#9](https://github.com/jjlabsio/claude-crew/pull/9))
+
+### ❤️ Contributors
+
+- Jaejin Song ([@jjlabsio](https://github.com/jjlabsio))
+
 ## v0.1.14
 
 [compare changes](https://github.com/jjlabsio/claude-crew/compare/v0.1.13...v0.1.14)
