@@ -1,6 +1,18 @@
 # Changelog
 
 
+## v0.1.14
+
+[compare changes](https://github.com/jjlabsio/claude-crew/compare/v0.1.13...v0.1.14)
+
+### 🩹 Fixes
+
+- **plugin:** Register missing agents in plugin.json ([#8](https://github.com/jjlabsio/claude-crew/pull/8))
+
+### ❤️ Contributors
+
+- Jaejin Song ([@jjlabsio](https://github.com/jjlabsio))
+
 ## v0.1.13
 
 [compare changes](https://github.com/jjlabsio/claude-crew/compare/v0.1.12...v0.1.13)
