@@ -1,6 +1,23 @@
 # Changelog
 
 
+## v0.1.8
+
+[compare changes](https://github.com/jjlabsio/claude-crew/compare/v0.1.7...v0.1.8)
+
+### 🩹 Fixes
+
+- **hud:** Show correct agent type and elapsed time in statusline ([#2](https://github.com/jjlabsio/claude-crew/pull/2))
+
+### 📖 Documentation
+
+- Use short owner/repo format for plugin install command ([38a19f4](https://github.com/jjlabsio/claude-crew/commit/38a19f4))
+
+### ❤️ Contributors
+
+- Jaejin Song ([@jjlabsio](https://github.com/jjlabsio))
+- 송재진 ([@jjlabsio](https://github.com/jjlabsio))
+
 ## v0.1.7
 
 [compare changes](https://github.com/jjlabsio/claude-crew/compare/v0.1.6...v0.1.7)
