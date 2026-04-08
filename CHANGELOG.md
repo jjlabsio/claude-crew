@@ -1,6 +1,18 @@
 # Changelog
 
 
+## v0.1.9
+
+[compare changes](https://github.com/jjlabsio/claude-crew/compare/v0.1.8...v0.1.9)
+
+### 🩹 Fixes
+
+- **crew-dev:** Close validation gaps and remove redundant diff relay ([#3](https://github.com/jjlabsio/claude-crew/pull/3))
+
+### ❤️ Contributors
+
+- Jaejin Song ([@jjlabsio](https://github.com/jjlabsio))
+
 ## v0.1.8
 
 [compare changes](https://github.com/jjlabsio/claude-crew/compare/v0.1.7...v0.1.8)
