@@ -3,6 +3,11 @@ name: Release
 on:
   push:
     branches: [main]
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to publish (e.g. 0.1.2). Leave empty to run full release.'
+        required: false
 
 permissions:
   contents: write
@@ -10,8 +15,8 @@ permissions:
 jobs:
   release:
     runs-on: ubuntu-latest
-    # Skip if the commit was made by the release bot itself
-    if: "!contains(github.event.head_commit.message, 'chore(release):')"
+    # Skip if the commit was made by the release bot itself (but allow manual dispatch)
+    if: github.event_name == 'workflow_dispatch' || !contains(github.event.head_commit.message, 'chore(release):')
     steps:
       - uses: actions/checkout@v4
         with:
@@ -26,9 +31,15 @@ jobs:
       - run: npm install
 
       # Check if there are releasable commits since last tag
+      # Manual dispatch with version input skips this (publish-only mode)
       - name: Check for releasable changes
         id: check
         run: |
+          if [ -n "${{ github.event.inputs.version }}" ]; then
+            echo "has_changes=false" >> "$GITHUB_OUTPUT"
+            echo "Manual dispatch with version input — skipping release, publish only"
+            exit 0
+          fi
           LAST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
           if [ -z "$LAST_TAG" ]; then
             echo "has_changes=true" >> "$GITHUB_OUTPUT"
@@ -71,11 +82,18 @@ jobs:
       - name: Commit and tag
         if: steps.check.outputs.has_changes == 'true'
         run: |
+          VERSION="v${{ steps.version.outputs.version }}"
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add -A
-          git commit -m "chore(release): v${{ steps.version.outputs.version }}"
-          git tag "v${{ steps.version.outputs.version }}"
+          # Skip commit if no staged changes (already committed in a previous run)
+          git diff --cached --quiet || git commit -m "chore(release): ${VERSION}"
+          # Skip tag if it already exists (previous run created it)
+          if git rev-parse "${VERSION}" >/dev/null 2>&1; then
+            echo "Tag ${VERSION} already exists, skipping"
+          else
+            git tag "${VERSION}"
+          fi
           git push --follow-tags
 
       - name: Create GitHub Release
@@ -83,9 +101,32 @@ jobs:
         run: npx changelogen gh release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        continue-on-error: true
+
+      - name: Resolve publish version
+        id: publish-version
+        run: |
+          if [ -n "${{ github.event.inputs.version }}" ]; then
+            echo "version=${{ github.event.inputs.version }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "version=${{ steps.version.outputs.version }}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Check if already published
+        id: npm-check
+        run: |
+          VERSION="${{ steps.publish-version.outputs.version }}"
+          if npm view "claude-crew@${VERSION}" version 2>/dev/null; then
+            echo "published=true" >> "$GITHUB_OUTPUT"
+            echo "v${VERSION} already published to npm, skipping"
+          else
+            echo "published=false" >> "$GITHUB_OUTPUT"
+          fi
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
       - name: Publish to npm
-        if: steps.check.outputs.has_changes == 'true'
+        if: steps.npm-check.outputs.published == 'false'
         run: npm publish
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
