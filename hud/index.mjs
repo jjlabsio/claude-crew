@@ -150,10 +150,16 @@ function parseTranscript(transcriptPath) {
 
     // Map of tool_use_id -> agent info
     const agentMap = new Map();
+    let lastTimestamp = null;
 
     for (const line of lines) {
       let entry;
       try { entry = JSON.parse(line); } catch { continue; }
+
+      // Track last known timestamp
+      if (entry.timestamp) {
+        lastTimestamp = entry.timestamp;
+      }
 
       // Session start time
       if (!result.sessionStart && entry.timestamp) {
@@ -174,12 +180,13 @@ function parseTranscript(transcriptPath) {
                   const agentType = input.subagent_type || input.type || 'general';
                   const model = input.model || null;
                   const description = input.description || input.prompt?.slice(0, 50) || '';
+                  const ts = entry.timestamp || lastTimestamp;
                   agentMap.set(id, {
                     id,
                     type: agentType,
                     model,
                     description,
-                    startTime: entry.timestamp ? new Date(entry.timestamp) : new Date(),
+                    startTime: ts ? new Date(ts) : null,
                     status: 'running',
                   });
                 }
@@ -219,7 +226,14 @@ function parseTranscript(transcriptPath) {
       }
     }
 
-    result.agents = [...agentMap.values()].filter(a => a.status === 'running');
+    // Filter running agents, mark stale ones (>30min) as completed
+    const STALE_THRESHOLD_MS = 30 * 60 * 1000;
+    const now = Date.now();
+    result.agents = [...agentMap.values()].filter(a => {
+      if (a.status !== 'running') return false;
+      if (a.startTime && (now - a.startTime.getTime()) > STALE_THRESHOLD_MS) return false;
+      return true;
+    });
   } catch { /* ignore parse errors */ }
 
   return result;
@@ -241,9 +255,11 @@ function shortModelName(model) {
 // Agent duration formatting
 // ---------------------------------------------------------------------------
 function formatAgentDuration(startTime) {
+  if (!startTime) return '?';
   const ms = Date.now() - startTime.getTime();
   const seconds = Math.floor(ms / 1000);
   const minutes = Math.floor(seconds / 60);
+  if (seconds < 10) return '';
   if (seconds < 60) return `${seconds}s`;
   return `${minutes}m`;
 }

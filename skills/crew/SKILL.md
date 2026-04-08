@@ -166,22 +166,24 @@ ACTIVE
 ## 에이전트 라인업
 
 ### crew-plan
-| 에이전트 | 모델 | 역할 |
-|----------|------|------|
-| PM | Opus | 유저 인터뷰, spec.md 작성 (유저 가치만) |
-| TechLead | Opus | 사전 분석, 아키텍처 방향, 가드레일 |
-| Planner | Opus | 계획 문서 작성 |
-| PlanEvaluator | Sonnet | E1-E4 하드 임계값 검증 |
+| 에이전트 | subagent_type | 모델 | 역할 |
+|----------|--------------|------|------|
+| PM | pm | Opus | 유저 인터뷰, spec.md 작성 (유저 가치만) |
+| TechLead | techlead | Opus | 사전 분석, 아키텍처 방향, 가드레일 |
+| Planner | planner | Opus | 계획 문서 작성 |
+| PlanEvaluator | plan-evaluator | Sonnet | E1-E4 하드 임계값 검증 |
 
 ### crew-dev
-| 에이전트 | 모델 | 역할 |
-|----------|------|------|
-| Dev | Opus | 코드 구현 + 자체 검증 |
-| CodeReviewer | Opus | 코드 품질 + 가드레일 위반 판정 |
-| QA | Sonnet | 실행 검증 (빌드/테스트/E2E) |
+| 에이전트 | subagent_type | 모델 | 역할 |
+|----------|--------------|------|------|
+| Dev | dev | Opus | 코드 구현 + 자체 검증 |
+| CodeReviewer | code-reviewer | Opus | 코드 품질 + 가드레일 위반 판정 |
+| QA | qa | Sonnet | 실행 검증 (빌드/테스트/E2E) |
 
 ### 공유 서브에이전트
-| 에이전트 | 모델 | 역할 |
-|----------|------|------|
-| Explorer | Haiku | 코드베이스 탐색 (병렬, Read-only) |
-| Researcher | Sonnet | 외부 정보 조사 (필요시만, Read-only) |
+| 에이전트 | subagent_type | 모델 | 역할 |
+|----------|--------------|------|------|
+| Explorer | explorer | Haiku | 코드베이스 탐색 (병렬, Read-only) |
+| Researcher | researcher | Sonnet | 외부 정보 조사 (필요시만, Read-only) |
+
+**중요**: 모든 에이전트 호출 시 반드시 `subagent_type` 파라미터를 지정해야 한다. HUD에서 에이전트 타입을 식별하는 데 사용된다.
