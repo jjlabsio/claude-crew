@@ -1,6 +1,18 @@
 # Changelog
 
 
+## v0.1.5
+
+[compare changes](https://github.com/jjlabsio/claude-crew/compare/v0.1.4...v0.1.5)
+
+### 🩹 Fixes
+
+- **ci:** Switch npm publish to OIDC trusted publishing ([6453a6b](https://github.com/jjlabsio/claude-crew/commit/6453a6b))
+
+### ❤️ Contributors
+
+- 송재진 ([@jjlabsio](https://github.com/jjlabsio))
+
 ## v0.1.4
 
 [compare changes](https://github.com/jjlabsio/claude-crew/compare/v0.1.3...v0.1.4)
