@@ -1,0 +1,17 @@
+{
+  "description": "CREW plugin hooks",
+  "hooks": {
+    "SessionStart": [
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"$CLAUDE_PLUGIN_ROOT/scripts/setup-hud.mjs\"",
+            "timeout": 5
+          }
+        ]
+      }
+    ]
+  }
+}

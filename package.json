@@ -20,6 +20,8 @@
     "agents/",
     "skills/",
     "hooks/",
+    "hud/",
+    "scripts/",
     "README.md",
     "LICENSE"
   ],
