@@ -1,6 +1,18 @@
 # Changelog
 
 
+## v0.1.13
+
+[compare changes](https://github.com/jjlabsio/claude-crew/compare/v0.1.12...v0.1.13)
+
+### 🩹 Fixes
+
+- **hud:** Resolve agent model from subagent_type when transcript lacks model field ([#7](https://github.com/jjlabsio/claude-crew/pull/7))
+
+### ❤️ Contributors
+
+- Jaejin Song ([@jjlabsio](https://github.com/jjlabsio))
+
 ## v0.1.12
 
 [compare changes](https://github.com/jjlabsio/claude-crew/compare/v0.1.11...v0.1.12)
