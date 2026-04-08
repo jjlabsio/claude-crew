@@ -188,6 +188,35 @@ function colorizeContext(pct) {
 }
 
 // ---------------------------------------------------------------------------
+// Rate limits (5h / weekly)
+// ---------------------------------------------------------------------------
+function getRateLimits(stdin) {
+  const rl = stdin?.rate_limits;
+  if (!rl) return null;
+  const parse = (v) => {
+    if (v == null) return null;
+    const n = typeof v === 'number' ? v : parseFloat(v);
+    return isNaN(n) ? null : Math.round(Math.min(Math.max(n, 0), 100));
+  };
+  const fiveHour = parse(rl.five_hour?.used_percentage);
+  const sevenDay = parse(rl.seven_day?.used_percentage);
+  if (fiveHour == null && sevenDay == null) return null;
+  return { fiveHour, sevenDay };
+}
+
+function colorizeRateLimits(limits) {
+  if (!limits) return null;
+  const colorize = (pct) => {
+    const color = pct >= 85 ? red : pct >= 70 ? yellow : green;
+    return color(`${pct}%`);
+  };
+  const parts = [];
+  if (limits.fiveHour != null) parts.push(`5h:${colorize(limits.fiveHour)}`);
+  if (limits.sevenDay != null) parts.push(`weekly:${colorize(limits.sevenDay)}`);
+  return parts.join(' ');
+}
+
+// ---------------------------------------------------------------------------
 // Transcript parsing (agents + skills)
 // ---------------------------------------------------------------------------
 function parseTranscript(transcriptPath) {
@@ -440,6 +469,10 @@ async function main() {
   }
 
   midElements.push(colorizeSession(transcript.sessionStart));
+
+  const rateLimits = getRateLimits(stdin);
+  const rateLimitsStr = colorizeRateLimits(rateLimits);
+  if (rateLimitsStr) midElements.push(rateLimitsStr);
 
   // --- Output ---
   const outputLines = [];
