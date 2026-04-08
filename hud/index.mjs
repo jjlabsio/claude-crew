@@ -188,6 +188,35 @@ function colorizeContext(pct) {
 }
 
 // ---------------------------------------------------------------------------
+// Rate limits (5h / weekly)
+// ---------------------------------------------------------------------------
+function getRateLimits(stdin) {
+  const rl = stdin?.rate_limits;
+  if (!rl) return null;
+  const parse = (v) => {
+    if (v == null) return null;
+    const n = typeof v === 'number' ? v : parseFloat(v);
+    return isNaN(n) ? null : Math.round(Math.min(Math.max(n, 0), 100));
+  };
+  const fiveHour = parse(rl.five_hour?.used_percentage);
+  const sevenDay = parse(rl.seven_day?.used_percentage);
+  if (fiveHour == null && sevenDay == null) return null;
+  return { fiveHour, sevenDay };
+}
+
+function colorizeRateLimits(limits) {
+  if (!limits) return null;
+  const colorize = (pct) => {
+    const color = pct >= 85 ? red : pct >= 70 ? yellow : green;
+    return color(`${pct}%`);
+  };
+  const parts = [];
+  if (limits.fiveHour != null) parts.push(`5h:${colorize(limits.fiveHour)}`);
+  if (limits.sevenDay != null) parts.push(`weekly:${colorize(limits.sevenDay)}`);
+  return parts.join(' ');
+}
+
+// ---------------------------------------------------------------------------
 // Transcript parsing (agents + skills)
 // ---------------------------------------------------------------------------
 function parseTranscript(transcriptPath) {
@@ -261,7 +290,10 @@ function parseTranscript(transcriptPath) {
       if (entry.type === 'tool_result') {
         const toolUseId = entry.tool_use_id;
         if (toolUseId && agentMap.has(toolUseId)) {
-          agentMap.get(toolUseId).status = 'completed';
+          const agent = agentMap.get(toolUseId);
+          agent.status = 'completed';
+          const ts = entry.timestamp || lastTimestamp;
+          if (ts) agent.endTime = new Date(ts);
         }
       }
       if (entry.type === 'user') {
@@ -271,8 +303,10 @@ function parseTranscript(transcriptPath) {
             if (block.type === 'tool_result') {
               const toolUseId = block.tool_use_id;
               if (toolUseId && agentMap.has(toolUseId)) {
-                agentMap.get(toolUseId).status = 'completed';
-              }
+                const agent = agentMap.get(toolUseId);
+                agent.status = 'completed';
+                const ts = entry.timestamp || lastTimestamp;
+                if (ts) agent.endTime = new Date(ts);
             }
           }
         }
@@ -307,14 +341,18 @@ function shortModelName(model) {
 // ---------------------------------------------------------------------------
 // Agent duration formatting
 // ---------------------------------------------------------------------------
-function formatAgentDuration(startTime) {
-  if (!startTime) return '?';
-  const ms = Date.now() - startTime.getTime();
+function formatAgentDuration(startTime, endTime) {
+  if (!startTime) return '';
+  const ms = (endTime ?? new Date()).getTime() - startTime.getTime();
+  if (ms < 1000) return '<1s';
   const seconds = Math.floor(ms / 1000);
-  const minutes = Math.floor(seconds / 60);
-  if (seconds < 10) return '';
   if (seconds < 60) return `${seconds}s`;
-  return `${minutes}m`;
+  const minutes = Math.floor(seconds / 60);
+  const secs = seconds % 60;
+  if (minutes < 60) return `${minutes}m${secs}s`;
+  const hours = Math.floor(minutes / 60);
+  const mins = minutes % 60;
+  return `${hours}h${mins}m`;
 }
 
 // ---------------------------------------------------------------------------
@@ -337,7 +375,7 @@ function renderAgentsMultiLine(agents, maxLines = 5) {
     const rawType = a.type.includes(':') ? a.type.split(':').pop() : a.type;
     const name = rawType.padEnd(7);
     const model = shortModelName(a.model).padEnd(8);
-    const duration = formatAgentDuration(a.startTime).padStart(4);
+    const duration = formatAgentDuration(a.startTime, a.endTime).padStart(6);
     const desc = a.description.length > 40 ? a.description.slice(0, 37) + '...' : a.description;
 
     detailLines.push(
@@ -440,6 +478,10 @@ async function main() {
   }
 
   midElements.push(colorizeSession(transcript.sessionStart));
+
+  const rateLimits = getRateLimits(stdin);
+  const rateLimitsStr = colorizeRateLimits(rateLimits);
+  if (rateLimitsStr) midElements.push(rateLimitsStr);
 
   // --- Output ---
   const outputLines = [];
