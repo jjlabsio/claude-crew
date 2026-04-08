@@ -281,13 +281,14 @@ function renderAgentsMultiLine(agents, maxLines = 5) {
     const isLast = index === displayCount - 1 && sorted.length <= maxLines;
     const prefix = isLast ? '\u2514\u2500' : '\u251c\u2500';
 
-    const name = a.type.padEnd(12);
+    const rawType = a.type.includes(':') ? a.type.split(':').pop() : a.type;
+    const name = rawType.padEnd(7);
     const model = shortModelName(a.model).padEnd(8);
     const duration = formatAgentDuration(a.startTime).padStart(4);
     const desc = a.description.length > 40 ? a.description.slice(0, 37) + '...' : a.description;
 
     detailLines.push(
-      `${dim(prefix)} ${cyan(name)}${model}${dim(duration)}   ${desc}`
+      `${dim(prefix)} ${cyan(name)} ${model}${dim(duration)}   ${desc}`
     );
   });
 
