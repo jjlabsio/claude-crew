@@ -19,6 +19,16 @@ Claude Code에서:
 /plugin install /path/to/claude-crew
 ```
 
+## 초기 설정
+
+설치 후 반드시 한 번 실행:
+
+```
+/crew-setup
+```
+
+HUD statusline이 설정되어 세션 중 레포, 브랜치, 모델, 컨텍스트 사용률, 에이전트 상태를 실시간으로 확인할 수 있다.
+
 ## 사용
 
 ```
