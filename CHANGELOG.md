@@ -1,6 +1,27 @@
 # Changelog
 
 
+## v0.1.2
+
+[compare changes](https://github.com/jjlabsio/claude-crew/compare/v0.1.1...v0.1.2)
+
+### 🚀 Enhancements
+
+- V2 pipeline redesign with HUD statusline ([#1](https://github.com/jjlabsio/claude-crew/pull/1))
+
+### 🏡 Chore
+
+- Add .omc and .crew to gitignore ([74a9b38](https://github.com/jjlabsio/claude-crew/commit/74a9b38))
+
+### 🤖 CI
+
+- Automate npm publish and GitHub release on PR merge ([c256d5d](https://github.com/jjlabsio/claude-crew/commit/c256d5d))
+
+### ❤️ Contributors
+
+- Jaejin Song ([@jjlabsio](https://github.com/jjlabsio))
+- 송재진 ([@jjlabsio](https://github.com/jjlabsio))
+
 ## v0.1.1
 
 
