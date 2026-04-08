@@ -78,12 +78,9 @@ async function main() {
 
   const input = event.tool_input || {};
 
-  // If subagent_type is missing, block the call
+  // If subagent_type is missing, pass through without modification
   if (!input.subagent_type) {
-    console.log(JSON.stringify({
-      continue: false,
-      reason: `Agent/Task 호출에 subagent_type이 누락되었습니다. 반드시 subagent_type을 지정하세요. 사용 가능한 타입: pm, techlead, explorer, planner, plan-evaluator, dev, code-reviewer, qa, researcher`,
-    }));
+    console.log(JSON.stringify({ continue: true }));
     return;
   }
 
