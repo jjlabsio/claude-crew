@@ -1,6 +1,18 @@
 # Changelog
 
 
+## v0.1.6
+
+[compare changes](https://github.com/jjlabsio/claude-crew/compare/v0.1.5...v0.1.6)
+
+### 🩹 Fixes
+
+- **ci:** Use Node 22 for npm trusted publishing OIDC support ([a41bfc1](https://github.com/jjlabsio/claude-crew/commit/a41bfc1))
+
+### ❤️ Contributors
+
+- 송재진 ([@jjlabsio](https://github.com/jjlabsio))
+
 ## v0.1.5
 
 [compare changes](https://github.com/jjlabsio/claude-crew/compare/v0.1.4...v0.1.5)
