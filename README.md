@@ -9,7 +9,7 @@
 Claude Code에서:
 
 ```
-/plugin marketplace add https://github.com/jjlabsio/claude-crew
+/plugin marketplace add jjlabsio/claude-crew
 /plugin install claude-crew
 ```
 
