@@ -1,6 +1,18 @@
 # Changelog
 
 
+## v0.1.3
+
+[compare changes](https://github.com/jjlabsio/claude-crew/compare/v0.1.2...v0.1.3)
+
+### 🩹 Fixes
+
+- **ci:** Make release workflow idempotent and add manual dispatch ([c97a69c](https://github.com/jjlabsio/claude-crew/commit/c97a69c))
+
+### ❤️ Contributors
+
+- 송재진 ([@jjlabsio](https://github.com/jjlabsio))
+
 ## v0.1.2
 
 [compare changes](https://github.com/jjlabsio/claude-crew/compare/v0.1.1...v0.1.2)
