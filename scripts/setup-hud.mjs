@@ -2,12 +2,13 @@
 /**
  * CREW Session Start Hook
  *
- * Checks if statusLine is configured for CREW HUD.
- * If not, automatically sets it up.
- * Reads stdin JSON from Claude Code (SessionStart hook input).
+ * Writes statusLine to the project's .claude/settings.local.json so the HUD
+ * only appears in projects where claude-crew is installed.
+ * Also removes the legacy global statusLine from ~/.claude/settings.json.
  */
 
-import { existsSync, readFileSync, writeFileSync } from 'node:fs';
+import { execSync } from 'node:child_process';
+import { existsSync, readFileSync, writeFileSync, mkdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { homedir } from 'node:os';
 
@@ -26,61 +27,67 @@ async function readStdin(timeoutMs = 3000) {
   });
 }
 
+function gitExec(cmd, cwd) {
+  try {
+    return execSync(cmd, { cwd, encoding: 'utf-8', timeout: 3000, stdio: ['pipe', 'pipe', 'pipe'] }).trim();
+  } catch { return null; }
+}
+
 // ---------------------------------------------------------------------------
 // Main
 // ---------------------------------------------------------------------------
 async function main() {
-  // Consume stdin (required by hook protocol)
-  await readStdin();
+  const raw = await readStdin();
 
-  const configDir = process.env.CLAUDE_CONFIG_DIR || join(homedir(), '.claude');
-  const settingsPath = join(configDir, 'settings.json');
   const pluginRoot = process.env.CLAUDE_PLUGIN_ROOT;
-
   if (!pluginRoot) {
-    // Not running as a plugin — skip
     console.log(JSON.stringify({ continue: true }));
     return;
   }
 
+  let cwd = process.cwd();
+  if (raw) {
+    try { cwd = JSON.parse(raw).cwd || cwd; } catch { /* ignore */ }
+  }
+
+  // Use git toplevel as the reliable project root
+  const projectRoot = gitExec('git rev-parse --show-toplevel', cwd) || cwd;
+
   const hudCommand = `node "${pluginRoot}/hud/index.mjs"`;
+  const localSettingsPath = join(projectRoot, '.claude', 'settings.local.json');
 
   try {
-    let settings = {};
-    if (existsSync(settingsPath)) {
-      settings = JSON.parse(readFileSync(settingsPath, 'utf-8'));
+    // --- Write statusLine to project-level settings.local.json ---
+    let localSettings = {};
+    if (existsSync(localSettingsPath)) {
+      try { localSettings = JSON.parse(readFileSync(localSettingsPath, 'utf-8')); } catch { /* ignore */ }
     }
 
-    // Check if statusLine is already set to the *current* plugin path
-    const currentCommand = settings.statusLine?.command || '';
-    if (currentCommand === hudCommand) {
-      // Already configured with this exact version
-      console.log(JSON.stringify({ continue: true }));
-      return;
+    if (localSettings.statusLine?.command !== hudCommand) {
+      localSettings.statusLine = { type: 'command', command: hudCommand };
+      mkdirSync(join(projectRoot, '.claude'), { recursive: true });
+      writeFileSync(localSettingsPath, JSON.stringify(localSettings, null, 2));
     }
 
-    // Set statusLine to crew HUD
-    settings.statusLine = {
-      type: 'command',
-      command: hudCommand,
-    };
+    // --- Remove legacy global statusLine from ~/.claude/settings.json ---
+    const globalSettingsPath = join(process.env.CLAUDE_CONFIG_DIR || join(homedir(), '.claude'), 'settings.json');
+    if (existsSync(globalSettingsPath)) {
+      try {
+        const globalSettings = JSON.parse(readFileSync(globalSettingsPath, 'utf-8'));
+        if (globalSettings.statusLine) {
+          delete globalSettings.statusLine;
+          writeFileSync(globalSettingsPath, JSON.stringify(globalSettings, null, 2));
+        }
+      } catch { /* ignore */ }
+    }
 
-    writeFileSync(settingsPath, JSON.stringify(settings, null, 2));
-
-    console.log(JSON.stringify({
-      continue: true,
-      hookSpecificOutput: {
-        hookEventName: 'SessionStart',
-        additionalContext: 'CREW HUD가 자동 설정되었습니다. 다음 세션부터 statusline에 표시됩니다.',
-      },
-    }));
+    console.log(JSON.stringify({ continue: true }));
   } catch (e) {
-    // Non-fatal — don't block session start
     console.log(JSON.stringify({
       continue: true,
       hookSpecificOutput: {
         hookEventName: 'SessionStart',
-        additionalContext: `CREW HUD 자동 설정 실패: ${e.message}. /crew-setup을 수동 실행해주세요.`,
+        additionalContext: `CREW HUD 자동 설정 실패: ${e.message}`,
       },
     }));
   }

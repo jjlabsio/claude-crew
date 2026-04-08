@@ -13,6 +13,7 @@ import { execSync } from 'node:child_process';
 import { readFileSync, existsSync, readdirSync } from 'node:fs';
 import { join, dirname, basename } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { homedir } from 'node:os';
 
 // ---------------------------------------------------------------------------
 // ANSI helpers
@@ -44,9 +45,36 @@ async function readStdin(timeoutMs = 1000) {
 }
 
 // ---------------------------------------------------------------------------
+// Project installation info from installed_plugins.json
+// ---------------------------------------------------------------------------
+function getProjectInstallInfo(projectRoot) {
+  try {
+    const pluginsJsonPath = join(homedir(), '.claude', 'plugins', 'installed_plugins.json');
+    if (!existsSync(pluginsJsonPath)) return null;
+    const data = JSON.parse(readFileSync(pluginsJsonPath, 'utf-8'));
+    const crewEntries = data.plugins?.['claude-crew@claude-crew'] || [];
+    return crewEntries.find(e => e.projectPath === projectRoot) || null;
+  } catch { return null; }
+}
+
+// ---------------------------------------------------------------------------
 // Version
 // ---------------------------------------------------------------------------
-function getVersion() {
+function getVersion(installInfo) {
+  // Read from the project-specific install path
+  if (installInfo?.installPath) {
+    try {
+      const pkgPath = join(installInfo.installPath, 'package.json');
+      if (existsSync(pkgPath)) {
+        return JSON.parse(readFileSync(pkgPath, 'utf-8')).version || '0.0.0';
+      }
+    } catch { /* ignore */ }
+  }
+  // Fallback to version field from install record
+  if (installInfo?.version && installInfo.version !== 'unknown') {
+    return installInfo.version;
+  }
+  // Final fallback: own package.json (dev/local run)
   try {
     const __dirname = dirname(fileURLToPath(import.meta.url));
     const pkgPath = join(__dirname, '..', 'package.json');
@@ -364,7 +392,15 @@ async function main() {
   }
 
   const cwd = stdin.cwd || process.cwd();
-  const version = getVersion();
+
+  // Find git project root for reliable matching against installed_plugins.json
+  const projectRoot = gitExec('git rev-parse --show-toplevel', cwd) || cwd;
+
+  // Only show HUD if claude-crew is installed in this project
+  const installInfo = getProjectInstallInfo(projectRoot);
+  if (!installInfo) return;
+
+  const version = getVersion(installInfo);
 
   // --- Top line ---
   const topElements = [];
