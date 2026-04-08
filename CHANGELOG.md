@@ -1,6 +1,18 @@
 # Changelog
 
 
+## v0.1.12
+
+[compare changes](https://github.com/jjlabsio/claude-crew/compare/v0.1.11...v0.1.12)
+
+### 🚀 Enhancements
+
+- Add delegation enforcer hook ([#6](https://github.com/jjlabsio/claude-crew/pull/6))
+
+### ❤️ Contributors
+
+- Jaejin Song ([@jjlabsio](https://github.com/jjlabsio))
+
 ## v0.1.11
 
 [compare changes](https://github.com/jjlabsio/claude-crew/compare/v0.1.10...v0.1.11)
