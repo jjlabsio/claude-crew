@@ -1,6 +1,18 @@
 # Changelog
 
 
+## v0.1.4
+
+[compare changes](https://github.com/jjlabsio/claude-crew/compare/v0.1.3...v0.1.4)
+
+### 🩹 Fixes
+
+- **ci:** Use scoped package name and add npm provenance ([3add77c](https://github.com/jjlabsio/claude-crew/commit/3add77c))
+
+### ❤️ Contributors
+
+- 송재진 ([@jjlabsio](https://github.com/jjlabsio))
+
 ## v0.1.3
 
 [compare changes](https://github.com/jjlabsio/claude-crew/compare/v0.1.2...v0.1.3)
