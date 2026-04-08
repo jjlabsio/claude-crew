@@ -21,7 +21,11 @@
     "./agents/planner.md",
     "./agents/dev.md",
     "./agents/qa.md",
-    "./agents/marketing.md"
+    "./agents/code-reviewer.md",
+    "./agents/techlead.md",
+    "./agents/researcher.md",
+    "./agents/explorer.md",
+    "./agents/plan-evaluator.md"
   ],
   "skills": [
     "./skills/"
