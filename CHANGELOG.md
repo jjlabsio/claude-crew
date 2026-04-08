@@ -1,6 +1,19 @@
 # Changelog
 
 
+## v0.1.7
+
+[compare changes](https://github.com/jjlabsio/claude-crew/compare/v0.1.6...v0.1.7)
+
+### 🩹 Fixes
+
+- **ci:** Install npm 11+ for trusted publishing OIDC support ([8f4900b](https://github.com/jjlabsio/claude-crew/commit/8f4900b))
+- **ci:** Use Node 24 which bundles npm 11+ for OIDC publishing ([0dcf53d](https://github.com/jjlabsio/claude-crew/commit/0dcf53d))
+
+### ❤️ Contributors
+
+- 송재진 ([@jjlabsio](https://github.com/jjlabsio))
+
 ## v0.1.6
 
 [compare changes](https://github.com/jjlabsio/claude-crew/compare/v0.1.5...v0.1.6)

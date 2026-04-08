@@ -1,6 +1,6 @@
 {
   "name": "claude-crew",
-  "version": "0.1.6",
+  "version": "0.1.7",
   "description": "1인 SaaS 개발자를 위한 멀티 에이전트 오케스트레이션 — 개발, 마케팅, 일정을 한 대화에서 통합 관리",
   "author": {
     "name": "Jaejin Song",
