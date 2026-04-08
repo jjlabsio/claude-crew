@@ -10,7 +10,7 @@
  */
 
 import { execSync } from 'node:child_process';
-import { readFileSync, existsSync } from 'node:fs';
+import { readFileSync, existsSync, readdirSync } from 'node:fs';
 import { join, dirname, basename } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -55,6 +55,28 @@ function getVersion() {
     }
   } catch { /* ignore */ }
   return '0.0.0';
+}
+
+// ---------------------------------------------------------------------------
+// Agent definitions (subagent_type → model)
+// ---------------------------------------------------------------------------
+function loadAgentModels() {
+  try {
+    const __dirname = dirname(fileURLToPath(import.meta.url));
+    const agentsDir = join(__dirname, '..', 'agents');
+    const models = {};
+    const files = readdirSync(agentsDir).filter(f => f.endsWith('.md'));
+    for (const file of files) {
+      const content = readFileSync(join(agentsDir, file), 'utf-8');
+      const fmMatch = content.match(/^---\n([\s\S]*?)\n---/);
+      if (!fmMatch) continue;
+      const fm = fmMatch[1];
+      const name = fm.match(/^name:\s*(.+)$/m)?.[1]?.trim();
+      const model = fm.match(/^model:\s*(.+)$/m)?.[1]?.trim();
+      if (name && model) models[name] = model;
+    }
+    return models;
+  } catch { return {}; }
 }
 
 // ---------------------------------------------------------------------------
@@ -144,6 +166,8 @@ function parseTranscript(transcriptPath) {
   const result = { agents: [], lastSkill: null, sessionStart: null };
   if (!transcriptPath || !existsSync(transcriptPath)) return result;
 
+  const agentModels = loadAgentModels();
+
   try {
     const content = readFileSync(transcriptPath, 'utf-8');
     const lines = content.split('\n').filter(Boolean);
@@ -178,7 +202,8 @@ function parseTranscript(transcriptPath) {
                 if (id) {
                   const input = block.input || {};
                   const agentType = input.subagent_type || input.type || 'general';
-                  const model = input.model || null;
+                  const rawType = agentType.replace(/^claude-crew:/, '');
+                  const model = input.model || agentModels[rawType] || null;
                   const description = input.description || input.prompt?.slice(0, 50) || '';
                   const ts = entry.timestamp || lastTimestamp;
                   agentMap.set(id, {
