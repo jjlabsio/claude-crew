@@ -1,6 +1,18 @@
 # Changelog
 
 
+## v0.1.17
+
+[compare changes](https://github.com/jjlabsio/claude-crew/compare/v0.1.16...v0.1.17)
+
+### 🚀 Enhancements
+
+- **hud:** Rate limit reset time + fix read-only agent file writes ([#11](https://github.com/jjlabsio/claude-crew/pull/11))
+
+### ❤️ Contributors
+
+- Jaejin Song ([@jjlabsio](https://github.com/jjlabsio))
+
 ## v0.1.16
 
 [compare changes](https://github.com/jjlabsio/claude-crew/compare/v0.1.15...v0.1.16)
