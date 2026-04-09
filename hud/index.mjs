@@ -307,6 +307,7 @@ function parseTranscript(transcriptPath) {
                 agent.status = 'completed';
                 const ts = entry.timestamp || lastTimestamp;
                 if (ts) agent.endTime = new Date(ts);
+              }
             }
           }
         }
