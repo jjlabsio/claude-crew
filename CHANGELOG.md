@@ -1,6 +1,18 @@
 # Changelog
 
 
+## v0.1.16
+
+[compare changes](https://github.com/jjlabsio/claude-crew/compare/v0.1.15...v0.1.16)
+
+### 🚀 Enhancements
+
+- **hud:** Add todo progress display and fix statusLine bugs ([#10](https://github.com/jjlabsio/claude-crew/pull/10))
+
+### ❤️ Contributors
+
+- Jaejin Song ([@jjlabsio](https://github.com/jjlabsio))
+
 ## v0.1.15
 
 [compare changes](https://github.com/jjlabsio/claude-crew/compare/v0.1.14...v0.1.15)
