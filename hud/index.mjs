@@ -198,10 +198,32 @@ function getRateLimits(stdin) {
     const n = typeof v === 'number' ? v : parseFloat(v);
     return isNaN(n) ? null : Math.round(Math.min(Math.max(n, 0), 100));
   };
+  const parseResetAt = (v) => {
+    if (typeof v !== 'number' || !Number.isFinite(v) || v <= 0) return null;
+    return new Date(v * 1000);
+  };
   const fiveHour = parse(rl.five_hour?.used_percentage);
   const sevenDay = parse(rl.seven_day?.used_percentage);
+  const fiveHourResetAt = parseResetAt(rl.five_hour?.resets_at);
+  const sevenDayResetAt = parseResetAt(rl.seven_day?.resets_at);
   if (fiveHour == null && sevenDay == null) return null;
-  return { fiveHour, sevenDay };
+  return { fiveHour, sevenDay, fiveHourResetAt, sevenDayResetAt };
+}
+
+function formatResetTime(resetAt) {
+  if (!resetAt) return '';
+  const diffMs = resetAt.getTime() - Date.now();
+  if (diffMs <= 0) return '';
+  const diffMins = Math.ceil(diffMs / 60000);
+  if (diffMins < 60) return `${diffMins}m`;
+  const hours = Math.floor(diffMins / 60);
+  const mins = diffMins % 60;
+  if (hours >= 24) {
+    const days = Math.floor(hours / 24);
+    const remHours = hours % 24;
+    return remHours > 0 ? `${days}d ${remHours}h` : `${days}d`;
+  }
+  return mins > 0 ? `${hours}h ${mins}m` : `${hours}h`;
 }
 
 function colorizeRateLimits(limits) {
@@ -210,9 +232,14 @@ function colorizeRateLimits(limits) {
     const color = pct >= 85 ? red : pct >= 70 ? yellow : green;
     return color(`${pct}%`);
   };
+  const formatWindow = (label, pct, resetAt) => {
+    const reset = formatResetTime(resetAt);
+    const resetStr = reset ? ` ${dim(`(${reset})`)}` : '';
+    return `${label}:${colorize(pct)}${resetStr}`;
+  };
   const parts = [];
-  if (limits.fiveHour != null) parts.push(`5h:${colorize(limits.fiveHour)}`);
-  if (limits.sevenDay != null) parts.push(`weekly:${colorize(limits.sevenDay)}`);
+  if (limits.fiveHour != null) parts.push(formatWindow('5h', limits.fiveHour, limits.fiveHourResetAt));
+  if (limits.sevenDay != null) parts.push(formatWindow('weekly', limits.sevenDay, limits.sevenDayResetAt));
   return parts.join(' ');
 }
 
