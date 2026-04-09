@@ -69,18 +69,6 @@ async function main() {
       writeFileSync(localSettingsPath, JSON.stringify(localSettings, null, 2));
     }
 
-    // --- Remove legacy global statusLine from ~/.claude/settings.json ---
-    const globalSettingsPath = join(process.env.CLAUDE_CONFIG_DIR || join(homedir(), '.claude'), 'settings.json');
-    if (existsSync(globalSettingsPath)) {
-      try {
-        const globalSettings = JSON.parse(readFileSync(globalSettingsPath, 'utf-8'));
-        if (globalSettings.statusLine) {
-          delete globalSettings.statusLine;
-          writeFileSync(globalSettingsPath, JSON.stringify(globalSettings, null, 2));
-        }
-      } catch { /* ignore */ }
-    }
-
     console.log(JSON.stringify({ continue: true }));
   } catch (e) {
     console.log(JSON.stringify({

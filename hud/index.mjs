@@ -220,7 +220,7 @@ function colorizeRateLimits(limits) {
 // Transcript parsing (agents + skills)
 // ---------------------------------------------------------------------------
 function parseTranscript(transcriptPath) {
-  const result = { agents: [], lastSkill: null, sessionStart: null };
+  const result = { agents: [], todos: [], lastSkill: null, sessionStart: null };
   if (!transcriptPath || !existsSync(transcriptPath)) return result;
 
   const agentModels = loadAgentModels();
@@ -229,55 +229,120 @@ function parseTranscript(transcriptPath) {
     const content = readFileSync(transcriptPath, 'utf-8');
     const lines = content.split('\n').filter(Boolean);
 
-    // Map of tool_use_id -> agent info
     const agentMap = new Map();
+    const latestTodos = [];
+    const taskIdToIndex = new Map();
     let lastTimestamp = null;
 
     for (const line of lines) {
       let entry;
       try { entry = JSON.parse(line); } catch { continue; }
 
-      // Track last known timestamp
       if (entry.timestamp) {
         lastTimestamp = entry.timestamp;
       }
 
-      // Session start time
       if (!result.sessionStart && entry.timestamp) {
         result.sessionStart = new Date(entry.timestamp);
       }
 
-      // Track agents
+      // Process tool_use blocks from assistant messages
       if (entry.type === 'tool_use' || entry.type === 'assistant') {
-        const content = entry.message?.content;
-        if (Array.isArray(content)) {
-          for (const block of content) {
-            if (block.type === 'tool_use') {
-              // Agent start
-              if (block.name === 'Agent' || block.name === 'proxy_Agent') {
-                const id = block.id;
-                if (id) {
-                  const input = block.input || {};
-                  const agentType = input.subagent_type || input.type || 'general';
-                  const rawType = agentType.replace(/^claude-crew:/, '');
-                  const model = input.model || agentModels[rawType] || null;
-                  const description = input.description || input.prompt?.slice(0, 50) || '';
-                  const ts = entry.timestamp || lastTimestamp;
-                  agentMap.set(id, {
-                    id,
-                    type: agentType,
-                    model,
-                    description,
-                    startTime: ts ? new Date(ts) : null,
-                    status: 'running',
-                  });
+        const blocks = entry.message?.content;
+        if (Array.isArray(blocks)) {
+          for (const block of blocks) {
+            if (block.type !== 'tool_use') continue;
+
+            // Agent start
+            if (block.name === 'Agent' || block.name === 'proxy_Agent') {
+              const id = block.id;
+              if (id) {
+                const input = block.input || {};
+                const agentType = input.subagent_type || input.type || 'general';
+                const rawType = agentType.replace(/^claude-crew:/, '');
+                const model = input.model || agentModels[rawType] || null;
+                const description = input.description || input.prompt?.slice(0, 50) || '';
+                const ts = entry.timestamp || lastTimestamp;
+                agentMap.set(id, {
+                  id,
+                  type: agentType,
+                  model,
+                  description,
+                  startTime: ts ? new Date(ts) : null,
+                  status: 'running',
+                });
+              }
+            }
+
+            // Skill invocation
+            if (block.name === 'Skill' || block.name === 'proxy_Skill') {
+              const skillName = block.input?.skill || block.input?.name;
+              if (skillName) {
+                result.lastSkill = skillName;
+              }
+            }
+
+            // TodoWrite — full replacement of todo list
+            if (block.name === 'TodoWrite') {
+              const input = block.input || {};
+              if (input.todos && Array.isArray(input.todos)) {
+                const contentToTaskIds = new Map();
+                for (const [taskId, idx] of taskIdToIndex) {
+                  if (idx < latestTodos.length) {
+                    const c = latestTodos[idx].content;
+                    const ids = contentToTaskIds.get(c) ?? [];
+                    ids.push(taskId);
+                    contentToTaskIds.set(c, ids);
+                  }
+                }
+
+                latestTodos.length = 0;
+                taskIdToIndex.clear();
+                latestTodos.push(...input.todos);
+
+                for (let i = 0; i < latestTodos.length; i++) {
+                  const ids = contentToTaskIds.get(latestTodos[i].content);
+                  if (ids) {
+                    for (const taskId of ids) {
+                      taskIdToIndex.set(taskId, i);
+                    }
+                    contentToTaskIds.delete(latestTodos[i].content);
+                  }
                 }
               }
-              // Skill invocation
-              if (block.name === 'Skill' || block.name === 'proxy_Skill') {
-                const skillName = block.input?.skill || block.input?.name;
-                if (skillName) {
-                  result.lastSkill = skillName;
+            }
+
+            // TaskCreate — append a single task
+            if (block.name === 'TaskCreate') {
+              const input = block.input || {};
+              const subject = typeof input.subject === 'string' ? input.subject : '';
+              const description = typeof input.description === 'string' ? input.description : '';
+              const todoContent = subject || description || 'Untitled task';
+              const status = normalizeTaskStatus(input.status) ?? 'pending';
+              latestTodos.push({ content: todoContent, status });
+
+              const taskId = typeof input.taskId === 'string' || typeof input.taskId === 'number'
+                ? String(input.taskId)
+                : block.id;
+              if (taskId) {
+                taskIdToIndex.set(taskId, latestTodos.length - 1);
+              }
+            }
+
+            // TaskUpdate — update status/content of existing task
+            if (block.name === 'TaskUpdate') {
+              const input = block.input || {};
+              const index = resolveTaskIndex(input.taskId, taskIdToIndex, latestTodos);
+              if (index !== null) {
+                const status = normalizeTaskStatus(input.status);
+                if (status) {
+                  latestTodos[index] = { ...latestTodos[index], status };
+                }
+                const subject = typeof input.subject === 'string' ? input.subject : '';
+                const description = typeof input.description === 'string' ? input.description : '';
+                const newContent = subject || description;
+                if (newContent) {
+                  latestTodos[index] = { ...latestTodos[index], content: newContent };
                 }
               }
             }
@@ -297,9 +362,9 @@ function parseTranscript(transcriptPath) {
         }
       }
       if (entry.type === 'user') {
-        const content = entry.message?.content;
-        if (Array.isArray(content)) {
-          for (const block of content) {
+        const blocks = entry.message?.content;
+        if (Array.isArray(blocks)) {
+          for (const block of blocks) {
             if (block.type === 'tool_result') {
               const toolUseId = block.tool_use_id;
               if (toolUseId && agentMap.has(toolUseId)) {
@@ -307,6 +372,7 @@ function parseTranscript(transcriptPath) {
                 agent.status = 'completed';
                 const ts = entry.timestamp || lastTimestamp;
                 if (ts) agent.endTime = new Date(ts);
+              }
             }
           }
         }
@@ -321,9 +387,44 @@ function parseTranscript(transcriptPath) {
       if (a.startTime && (now - a.startTime.getTime()) > STALE_THRESHOLD_MS) return false;
       return true;
     });
+    result.todos = [...latestTodos];
   } catch { /* ignore parse errors */ }
 
   return result;
+}
+
+// ---------------------------------------------------------------------------
+// Todo helpers
+// ---------------------------------------------------------------------------
+function normalizeTaskStatus(status) {
+  if (typeof status !== 'string') return null;
+  switch (status) {
+    case 'pending':
+    case 'not_started':
+      return 'pending';
+    case 'in_progress':
+    case 'running':
+      return 'in_progress';
+    case 'completed':
+    case 'complete':
+    case 'done':
+      return 'completed';
+    default:
+      return null;
+  }
+}
+
+function resolveTaskIndex(taskId, taskIdToIndex, latestTodos) {
+  if (typeof taskId === 'string' || typeof taskId === 'number') {
+    const key = String(taskId);
+    const mapped = taskIdToIndex.get(key);
+    if (typeof mapped === 'number') return mapped;
+    if (/^\d+$/.test(key)) {
+      const numericIndex = parseInt(key, 10) - 1;
+      if (numericIndex >= 0 && numericIndex < latestTodos.length) return numericIndex;
+    }
+  }
+  return null;
 }
 
 // ---------------------------------------------------------------------------
@@ -389,6 +490,29 @@ function renderAgentsMultiLine(agents, maxLines = 5) {
   }
 
   return { headerPart, detailLines };
+}
+
+// ---------------------------------------------------------------------------
+// Todo progress rendering
+// ---------------------------------------------------------------------------
+function renderTodosLine(todos) {
+  if (!todos || todos.length === 0) return null;
+
+  const inProgress = todos.find(t => t.status === 'in_progress');
+  const completed = todos.filter(t => t.status === 'completed').length;
+  const total = todos.length;
+
+  if (!inProgress) {
+    if (completed === total && total > 0) {
+      return `${green('\u2713')} all done ${dim(`(${completed}/${total})`)}`;
+    }
+    return null;
+  }
+
+  const content = inProgress.content.length > 50
+    ? inProgress.content.slice(0, 47) + '...'
+    : inProgress.content;
+  return `${yellow('\u25b8')} ${content} ${dim(`(${completed}/${total})`)}`;
 }
 
 // ---------------------------------------------------------------------------
@@ -483,11 +607,15 @@ async function main() {
   const rateLimitsStr = colorizeRateLimits(rateLimits);
   if (rateLimitsStr) midElements.push(rateLimitsStr);
 
+  // --- Todos line ---
+  const todosLine = renderTodosLine(transcript.todos);
+
   // --- Output ---
   const outputLines = [];
   outputLines.push(topElements.join(SEPARATOR));
   outputLines.push(midElements.join(SEPARATOR));
   outputLines.push(...detailLines);
+  if (todosLine) outputLines.push(todosLine);
 
   console.log(outputLines.filter(Boolean).join('\n'));
 }
