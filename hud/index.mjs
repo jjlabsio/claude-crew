@@ -474,13 +474,13 @@ function renderAgentsMultiLine(agents, maxLines = 5) {
     const prefix = isLast ? '\u2514\u2500' : '\u251c\u2500';
 
     const rawType = a.type.includes(':') ? a.type.split(':').pop() : a.type;
-    const name = rawType.padEnd(7);
-    const model = shortModelName(a.model).padEnd(8);
-    const duration = formatAgentDuration(a.startTime, a.endTime).padStart(6);
+    const name = rawType;
+    const model = `[${shortModelName(a.model)}]`;
+    const duration = formatAgentDuration(a.startTime, a.endTime);
     const desc = a.description.length > 40 ? a.description.slice(0, 37) + '...' : a.description;
 
     detailLines.push(
-      `${dim(prefix)} ${cyan(name)} ${model}${dim(duration)}   ${desc}`
+      `${dim(prefix)} ${cyan(name)} ${dim(model)} : ${desc} ${dim(`(${duration})`)}`
     );
   });
 
