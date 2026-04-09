@@ -229,7 +229,7 @@ contract.md, plan.md, brief.md, spec.md, dev-log.md는 읽지 않는다.
 6. 에러 처리 적절성
 
 ## 출력
-.crew/plans/{task-id}/review-report.md 를 작성하라.
+아래 형식으로 리뷰 결과를 텍스트로 반환하라. 파일을 직접 작성하지 않는다.
 
 ## 판정 규칙
 - 가드레일 위반 → critical
@@ -269,7 +269,7 @@ contract.md, brief.md, spec.md는 읽지 않는다.
 6. E2E / 통합 검증 — plan.md의 테스트 시나리오 기반
 
 ## 출력
-.crew/plans/{task-id}/qa-report.md 를 작성하라.
+아래 형식으로 검증 결과를 텍스트로 반환하라. 파일을 직접 작성하지 않는다.
 
 ## 판정 규칙
 - 항목 1-6 중 하나라도 FAIL → 전체 FAIL
@@ -280,6 +280,13 @@ contract.md, brief.md, spec.md는 읽지 않는다.
 - 실행 출력을 반드시 캡처하여 기록한다.
 - 코드를 수정하지 않는다. 검증만 한다.
 ```
+
+**Phase 3 결과 저장 (오케스트레이터 직접)**:
+
+CodeReviewer와 QA 에이전트는 read-only이므로 파일을 직접 작성하지 않는다.
+오케스트레이터가 각 에이전트의 반환 텍스트를 파일로 저장한다:
+- CodeReviewer 결과 → `.crew/plans/{task-id}/review-report.md`
+- QA 결과 → `.crew/plans/{task-id}/qa-report.md`
 
 **Phase 3 병렬 실행 방법**:
 
