@@ -1,6 +1,18 @@
 # Changelog
 
 
+## v0.1.18
+
+[compare changes](https://github.com/jjlabsio/claude-crew/compare/v0.1.17...v0.1.18)
+
+### 🩹 Fixes
+
+- Worktree path resolution + contract checkbox update ([#12](https://github.com/jjlabsio/claude-crew/pull/12))
+
+### ❤️ Contributors
+
+- Jaejin Song ([@jjlabsio](https://github.com/jjlabsio))
+
 ## v0.1.17
 
 [compare changes](https://github.com/jjlabsio/claude-crew/compare/v0.1.16...v0.1.17)
