@@ -583,7 +583,13 @@ async function main() {
   const cwd = stdin.cwd || process.cwd();
 
   // Find git project root for reliable matching against installed_plugins.json
-  const projectRoot = gitExec('git rev-parse --show-toplevel', cwd) || cwd;
+  // In worktrees, --show-toplevel returns the worktree path, not the main repo.
+  // Use --git-common-dir to resolve back to the main repo path.
+  const topLevel = gitExec('git rev-parse --show-toplevel', cwd) || cwd;
+  const commonDir = gitExec('git rev-parse --git-common-dir', cwd);
+  const projectRoot = (commonDir && commonDir !== '.git' && !commonDir.startsWith('.'))
+    ? dirname(commonDir)  // worktree: commonDir is /path/to/main-repo/.git
+    : topLevel;
 
   // Only show HUD if claude-crew is installed in this project
   const installInfo = getProjectInstallInfo(projectRoot);
