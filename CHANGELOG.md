@@ -1,6 +1,18 @@
 # Changelog
 
 
+## v0.1.19
+
+[compare changes](https://github.com/jjlabsio/claude-crew/compare/v0.1.18...v0.1.19)
+
+### 🩹 Fixes
+
+- Apply worktree path resolution to setup-hud hook ([#13](https://github.com/jjlabsio/claude-crew/pull/13))
+
+### ❤️ Contributors
+
+- Jaejin Song ([@jjlabsio](https://github.com/jjlabsio))
+
 ## v0.1.18
 
 [compare changes](https://github.com/jjlabsio/claude-crew/compare/v0.1.17...v0.1.18)
