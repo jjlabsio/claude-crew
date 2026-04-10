@@ -9,7 +9,7 @@
 
 import { execSync } from 'node:child_process';
 import { existsSync, readFileSync, writeFileSync, mkdirSync } from 'node:fs';
-import { join } from 'node:path';
+import { join, dirname } from 'node:path';
 import { homedir } from 'node:os';
 
 // ---------------------------------------------------------------------------
@@ -50,8 +50,13 @@ async function main() {
     try { cwd = JSON.parse(raw).cwd || cwd; } catch { /* ignore */ }
   }
 
-  // Use git toplevel as the reliable project root
-  const projectRoot = gitExec('git rev-parse --show-toplevel', cwd) || cwd;
+  // In worktrees, --show-toplevel returns the worktree path, not the main repo.
+  // Use --git-common-dir to resolve back to the main repo path.
+  const topLevel = gitExec('git rev-parse --show-toplevel', cwd) || cwd;
+  const commonDir = gitExec('git rev-parse --git-common-dir', cwd);
+  const projectRoot = (commonDir && commonDir !== '.git' && !commonDir.startsWith('.'))
+    ? dirname(commonDir)  // worktree: commonDir is /path/to/main-repo/.git
+    : topLevel;
 
   const hudCommand = `node "${pluginRoot}/hud/index.mjs"`;
   const localSettingsPath = join(projectRoot, '.claude', 'settings.local.json');
