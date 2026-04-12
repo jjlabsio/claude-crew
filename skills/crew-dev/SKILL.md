@@ -84,13 +84,21 @@ contract.md 유효성 검사에 실패했습니다.
 
 **1b. 워크트리 생성**
 
-```bash
-git fetch origin main
-git worktree add ../{project}-worktree-feat-{task-id} -b feat/{task-id} origin/main
+Claude Code의 `EnterWorktree` 도구를 사용한다:
+
+```
+EnterWorktree(name="feat/{task-id}")
 ```
 
-워크트리 디렉토리로 이동한다. 이후 모든 작업은 워크트리에서 수행한다.
-환경 파일(`.env*` 등)이 있으면 복사한다.
+워크트리 진입 후 브랜치를 `origin/main` 기준으로 리셋한다:
+
+```bash
+git fetch origin main
+git reset --hard origin/main
+```
+
+이후 모든 작업은 워크트리에서 수행한다.
+환경 파일(`.env*` 등)이 원본 프로젝트에 있으면 복사한다.
 
 **1c. 상태 갱신**
 
@@ -339,7 +347,15 @@ PR: {PR URL}
 
 `.dev_loop_count` 파일이 존재하면 삭제한다.
 
-**5d. 완료 반환**
+**5d. 워크트리 종료**
+
+```
+ExitWorktree(action="remove")
+```
+
+PR push가 완료되었으므로 로컬 워크트리를 제거하고 원본 프로젝트 디렉토리로 복귀한다.
+
+**5e. 완료 반환**
 
 ```
 상태: COMPLETE
@@ -378,6 +394,7 @@ Phase 4에서 FAIL이면:
 에스컬레이션 시:
 - `.dev_loop_count` 파일을 삭제한다.
 - contract.md 상태를 `BLOCKED`으로 갱신한다.
+- `ExitWorktree(action="keep")`으로 원본 프로젝트 디렉토리로 복귀한다.
 
 **조건 2 — 같은 기준 3회 연속 실패**:
 
@@ -390,6 +407,8 @@ review-report.md와 qa-report.md에서 FAIL 항목을 확인한다.
 [2] plan.md를 수정 (구현 전략의 문제)
 [3] 이 태스크를 보류
 ```
+
+에스컬레이션 시 `ExitWorktree(action="keep")`으로 원본 프로젝트 디렉토리로 복귀한다.
 
 **6c. 피드백 아카이브**
 
