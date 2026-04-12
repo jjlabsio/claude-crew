@@ -1,6 +1,18 @@
 # Changelog
 
 
+## v0.1.24
+
+[compare changes](https://github.com/jjlabsio/claude-crew/compare/v0.1.23...v0.1.24)
+
+### 🚀 Enhancements
+
+- Scope-aware provider config — user-level install saves to ~/.claude/crew/, project-level to .crew/ ([#18](https://github.com/jjlabsio/claude-crew/pull/18))
+
+### ❤️ Contributors
+
+- Jaejin Song ([@jjlabsio](https://github.com/jjlabsio))
+
 ## v0.1.23
 
 [compare changes](https://github.com/jjlabsio/claude-crew/compare/v0.1.22...v0.1.23)

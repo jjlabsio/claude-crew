@@ -11,7 +11,7 @@
       "name": "claude-crew",
       "source": "./",
       "description": "오케스트레이터 + PM, 플래너, 개발, QA, 마케팅 에이전트 팀으로 단일 제품의 개발과 마케팅을 통합 관리",
-      "version": "0.1.23",
+      "version": "0.1.24",
       "author": {
         "name": "Jaejin Song",
         "email": "wowlxx28@gmail.com"
@@ -28,5 +28,5 @@
       "category": "workflow"
     }
   ],
-  "version": "0.1.23"
+  "version": "0.1.24"
 }
