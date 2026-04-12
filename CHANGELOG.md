@@ -1,6 +1,18 @@
 # Changelog
 
 
+## v0.1.25
+
+[compare changes](https://github.com/jjlabsio/claude-crew/compare/v0.1.24...v0.1.25)
+
+### 🩹 Fixes
+
+- **hud:** Show agents in worktree by falling back to original transcript ([#19](https://github.com/jjlabsio/claude-crew/pull/19))
+
+### ❤️ Contributors
+
+- Jaejin Song ([@jjlabsio](https://github.com/jjlabsio))
+
 ## v0.1.24
 
 [compare changes](https://github.com/jjlabsio/claude-crew/compare/v0.1.23...v0.1.24)
