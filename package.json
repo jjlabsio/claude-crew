@@ -18,6 +18,7 @@
   "files": [
     ".claude-plugin/",
     "agents/",
+    "data/",
     "skills/",
     "hooks/",
     "hud/",

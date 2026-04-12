@@ -1,0 +1,24 @@
+{
+  "claude": {
+    "models": [
+      { "id": "opus", "label": "Opus 4.6 — 최고 품질, 복잡한 구현", "default_for": ["dev", "code-reviewer"] },
+      { "id": "sonnet", "label": "Sonnet 4.6 — 빠르고 저렴, Opus급 성능", "default_for": ["qa"] },
+      { "id": "haiku", "label": "Haiku 4.5 — 최저 비용, 단순 태스크", "default_for": [] }
+    ]
+  },
+  "codex": {
+    "models": [
+      { "id": "gpt-5.4", "reasoning": "xhigh", "label": "GPT-5.4 xhigh (추천) — 최고 성능, 토큰 多", "default_for": ["dev", "code-reviewer"] },
+      { "id": "gpt-5.4", "reasoning": "high", "label": "GPT-5.4 high — 고성능, 균형잡힌 비용", "default_for": [] },
+      { "id": "gpt-5.4", "reasoning": "medium", "label": "GPT-5.4 medium — 빠르고 저렴", "default_for": [] },
+      { "id": "o3", "reasoning": "high", "label": "o3 high — 추론 특화", "default_for": [] },
+      { "id": "o3", "reasoning": "medium", "label": "o3 medium — 추론 특화, 저비용", "default_for": [] },
+      { "id": "gpt-5.4-mini", "reasoning": null, "label": "GPT-5.4 Mini — 최저 비용", "default_for": ["qa"] }
+    ]
+  },
+  "agent_defaults": {
+    "dev": { "provider": "claude", "model": "opus" },
+    "code-reviewer": { "provider": "claude", "model": "opus" },
+    "qa": { "provider": "claude", "model": "sonnet" }
+  }
+}

@@ -21,6 +21,7 @@ import { homedir } from 'node:os';
 const RESET = '\x1b[0m';
 const bold = (s) => `\x1b[1m${s}\x1b[22m`;
 const dim = (s) => `\x1b[2m${s}\x1b[22m`;
+const subdued = (s) => `\x1b[38;5;248m${s}${RESET}`;
 const yellow = (s) => `\x1b[33m${s}\x1b[39m`;
 const red = (s) => `\x1b[31m${s}\x1b[39m`;
 const green = (s) => `\x1b[32m${s}\x1b[39m`;
@@ -237,13 +238,48 @@ function colorizeRateLimits(limits) {
   };
   const formatWindow = (label, pct, resetAt) => {
     const reset = formatResetTime(resetAt);
-    const resetStr = reset ? ` ${dim(`(${reset})`)}` : '';
+    const resetStr = reset ? ` ${subdued(`(${reset})`)}` : '';
     return `${label}:${colorize(pct)}${resetStr}`;
   };
   const parts = [];
   if (limits.fiveHour != null) parts.push(formatWindow('5h', limits.fiveHour, limits.fiveHourResetAt));
   if (limits.sevenDay != null) parts.push(formatWindow('weekly', limits.sevenDay, limits.sevenDayResetAt));
   return parts.join(' ');
+}
+
+// ---------------------------------------------------------------------------
+// Worktree-aware transcript path resolution
+// ---------------------------------------------------------------------------
+// When Claude Code enters a worktree, stdin.transcript_path points to a
+// worktree-specific project directory whose transcript only contains events
+// after worktree entry — todos created before are lost.
+//
+// Fix: detect worktree, locate the original project transcript with the same
+// session ID, and merge todos from the original into the worktree result.
+//
+// Parallel worktrees: each gets its own transcript_path but the original
+// project transcript is shared. Each worktree merges from the same original,
+// so all see the full todo list without interfering with each other.
+function resolveOriginalTranscriptPath(transcriptPath, cwd) {
+  if (!transcriptPath || !cwd) return null;
+
+  const commonDir = gitExec('git rev-parse --git-common-dir', cwd);
+  if (!commonDir || commonDir === '.git' || commonDir.startsWith('.')) return null;
+
+  // commonDir is absolute: /path/to/main-repo/.git
+  const mainRepoPath = dirname(commonDir);
+  const transcriptFilename = basename(transcriptPath);
+  const transcriptDir = dirname(transcriptPath);
+  const projectsBase = dirname(transcriptDir);
+
+  // Convert main repo path to Claude Code project dir format:
+  // /Users/foo/myproject → -Users-foo-myproject
+  const mainProjectDirName = mainRepoPath.replace(/\//g, '-');
+  const originalPath = join(projectsBase, mainProjectDirName, transcriptFilename);
+
+  if (originalPath === transcriptPath) return null;
+  if (existsSync(originalPath)) return originalPath;
+  return null;
 }
 
 // ---------------------------------------------------------------------------
@@ -510,7 +546,7 @@ function renderAgentsMultiLine(agents, maxLines = 5) {
     const desc = a.description.length > 40 ? a.description.slice(0, 37) + '...' : a.description;
 
     detailLines.push(
-      `${dim(prefix)} ${cyan(name)} ${dim(model)} : ${desc} ${dim(`(${duration})`)}`
+      `${dim(prefix)} ${cyan(name)} ${subdued(model)} : ${desc} ${subdued(`(${duration})`)}`
     );
   });
 
@@ -534,7 +570,7 @@ function renderTodosLine(todos) {
 
   if (!inProgress) {
     if (completed === total && total > 0) {
-      return `${green('\u2713')} all done ${dim(`(${completed}/${total})`)}`;
+      return `${green('\u2713')} all done ${subdued(`(${completed}/${total})`)}`;
     }
     return null;
   }
@@ -542,7 +578,7 @@ function renderTodosLine(todos) {
   const content = inProgress.content.length > 50
     ? inProgress.content.slice(0, 47) + '...'
     : inProgress.content;
-  return `${yellow('\u25b8')} ${content} ${dim(`(${completed}/${total})`)}`;
+  return `${yellow('\u25b8')} ${content} ${subdued(`(${completed}/${total})`)}`;
 }
 
 // ---------------------------------------------------------------------------
@@ -627,6 +663,21 @@ async function main() {
   midElements.push(colorizeContext(ctxPct));
 
   const transcript = parseTranscript(stdin.transcript_path);
+
+  // In worktrees, merge todos from the original project transcript.
+  // The worktree transcript only has events after EnterWorktree, so todos
+  // created before are missing. The original transcript has the full history.
+  // If the worktree transcript also has todos (created after worktree entry),
+  // use the worktree's todos since they are more up-to-date for that session.
+  if (transcript.todos.length === 0) {
+    const originalPath = resolveOriginalTranscriptPath(stdin.transcript_path, cwd);
+    if (originalPath) {
+      const originalTranscript = parseTranscript(originalPath);
+      if (originalTranscript.todos.length > 0) {
+        transcript.todos = originalTranscript.todos;
+      }
+    }
+  }
 
   const { headerPart, detailLines } = renderAgentsMultiLine(transcript.agents);
   if (headerPart) {
