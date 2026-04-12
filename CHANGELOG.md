@@ -1,6 +1,23 @@
 # Changelog
 
 
+## v0.1.20
+
+[compare changes](https://github.com/jjlabsio/claude-crew/compare/v0.1.19...v0.1.20)
+
+### 🚀 Enhancements
+
+- Add crew-interview skill — 3-stage pipeline (WHAT → HOW → DO) ([#14](https://github.com/jjlabsio/claude-crew/pull/14))
+
+### 🏡 Chore
+
+- Add .claude/ to gitignore ([ff6915b](https://github.com/jjlabsio/claude-crew/commit/ff6915b))
+
+### ❤️ Contributors
+
+- Jaejin Song ([@jjlabsio](https://github.com/jjlabsio))
+- 송재진 ([@jjlabsio](https://github.com/jjlabsio))
+
 ## v0.1.19
 
 [compare changes](https://github.com/jjlabsio/claude-crew/compare/v0.1.18...v0.1.19)
