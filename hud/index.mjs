@@ -47,13 +47,16 @@ async function readStdin(timeoutMs = 1000) {
 // ---------------------------------------------------------------------------
 // Project installation info from installed_plugins.json
 // ---------------------------------------------------------------------------
-function getProjectInstallInfo(projectRoot) {
+function getInstallInfo(projectRoot) {
   try {
     const pluginsJsonPath = join(homedir(), '.claude', 'plugins', 'installed_plugins.json');
     if (!existsSync(pluginsJsonPath)) return null;
     const data = JSON.parse(readFileSync(pluginsJsonPath, 'utf-8'));
     const crewEntries = data.plugins?.['claude-crew@claude-crew'] || [];
-    return crewEntries.find(e => e.projectPath === projectRoot) || null;
+    // Prefer project-level install, fall back to user-level install
+    return crewEntries.find(e => e.projectPath === projectRoot)
+      || crewEntries.find(e => e.scope === 'user')
+      || null;
   } catch { return null; }
 }
 
@@ -591,8 +594,8 @@ async function main() {
     ? dirname(commonDir)  // worktree: commonDir is /path/to/main-repo/.git
     : topLevel;
 
-  // Only show HUD if claude-crew is installed in this project
-  const installInfo = getProjectInstallInfo(projectRoot);
+  // Only show HUD if claude-crew is installed (project-level or user-level)
+  const installInfo = getInstallInfo(projectRoot);
   if (!installInfo) return;
 
   const version = getVersion(installInfo);
