@@ -1,6 +1,18 @@
 # Changelog
 
 
+## v0.1.23
+
+[compare changes](https://github.com/jjlabsio/claude-crew/compare/v0.1.22...v0.1.23)
+
+### 🚀 Enhancements
+
+- Multi-provider support (claude/codex) ([#17](https://github.com/jjlabsio/claude-crew/pull/17))
+
+### ❤️ Contributors
+
+- Jaejin Song ([@jjlabsio](https://github.com/jjlabsio))
+
 ## v0.1.22
 
 [compare changes](https://github.com/jjlabsio/claude-crew/compare/v0.1.21...v0.1.22)
