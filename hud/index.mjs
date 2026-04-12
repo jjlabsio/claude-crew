@@ -21,6 +21,7 @@ import { homedir } from 'node:os';
 const RESET = '\x1b[0m';
 const bold = (s) => `\x1b[1m${s}\x1b[22m`;
 const dim = (s) => `\x1b[2m${s}\x1b[22m`;
+const subdued = (s) => `\x1b[38;5;248m${s}${RESET}`;
 const yellow = (s) => `\x1b[33m${s}\x1b[39m`;
 const red = (s) => `\x1b[31m${s}\x1b[39m`;
 const green = (s) => `\x1b[32m${s}\x1b[39m`;
@@ -237,7 +238,7 @@ function colorizeRateLimits(limits) {
   };
   const formatWindow = (label, pct, resetAt) => {
     const reset = formatResetTime(resetAt);
-    const resetStr = reset ? ` ${dim(`(${reset})`)}` : '';
+    const resetStr = reset ? ` ${subdued(`(${reset})`)}` : '';
     return `${label}:${colorize(pct)}${resetStr}`;
   };
   const parts = [];
@@ -545,7 +546,7 @@ function renderAgentsMultiLine(agents, maxLines = 5) {
     const desc = a.description.length > 40 ? a.description.slice(0, 37) + '...' : a.description;
 
     detailLines.push(
-      `${dim(prefix)} ${cyan(name)} ${dim(model)} : ${desc} ${dim(`(${duration})`)}`
+      `${dim(prefix)} ${cyan(name)} ${subdued(model)} : ${desc} ${subdued(`(${duration})`)}`
     );
   });
 
@@ -569,7 +570,7 @@ function renderTodosLine(todos) {
 
   if (!inProgress) {
     if (completed === total && total > 0) {
-      return `${green('\u2713')} all done ${dim(`(${completed}/${total})`)}`;
+      return `${green('\u2713')} all done ${subdued(`(${completed}/${total})`)}`;
     }
     return null;
   }
@@ -577,7 +578,7 @@ function renderTodosLine(todos) {
   const content = inProgress.content.length > 50
     ? inProgress.content.slice(0, 47) + '...'
     : inProgress.content;
-  return `${yellow('\u25b8')} ${content} ${dim(`(${completed}/${total})`)}`;
+  return `${yellow('\u25b8')} ${content} ${subdued(`(${completed}/${total})`)}`;
 }
 
 // ---------------------------------------------------------------------------
