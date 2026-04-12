@@ -1,6 +1,18 @@
 # Changelog
 
 
+## v0.1.21
+
+[compare changes](https://github.com/jjlabsio/claude-crew/compare/v0.1.20...v0.1.21)
+
+### 🩹 Fixes
+
+- Support user-level install in HUD install detection ([#15](https://github.com/jjlabsio/claude-crew/pull/15))
+
+### ❤️ Contributors
+
+- Jaejin Song ([@jjlabsio](https://github.com/jjlabsio))
+
 ## v0.1.20
 
 [compare changes](https://github.com/jjlabsio/claude-crew/compare/v0.1.19...v0.1.20)
