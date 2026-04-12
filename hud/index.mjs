@@ -664,17 +664,20 @@ async function main() {
 
   const transcript = parseTranscript(stdin.transcript_path);
 
-  // In worktrees, merge todos from the original project transcript.
+  // In worktrees, merge data from the original project transcript.
   // The worktree transcript only has events after EnterWorktree, so todos
-  // created before are missing. The original transcript has the full history.
-  // If the worktree transcript also has todos (created after worktree entry),
-  // use the worktree's todos since they are more up-to-date for that session.
-  if (transcript.todos.length === 0) {
+  // and agents created before are missing. The original transcript has the
+  // full history. If the worktree transcript already has its own data
+  // (created after worktree entry), prefer the worktree's version.
+  if (transcript.todos.length === 0 || transcript.agents.length === 0) {
     const originalPath = resolveOriginalTranscriptPath(stdin.transcript_path, cwd);
     if (originalPath) {
       const originalTranscript = parseTranscript(originalPath);
-      if (originalTranscript.todos.length > 0) {
+      if (transcript.todos.length === 0 && originalTranscript.todos.length > 0) {
         transcript.todos = originalTranscript.todos;
+      }
+      if (transcript.agents.length === 0 && originalTranscript.agents.length > 0) {
+        transcript.agents = originalTranscript.agents;
       }
     }
   }
