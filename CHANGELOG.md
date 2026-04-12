@@ -1,6 +1,18 @@
 # Changelog
 
 
+## v0.1.22
+
+[compare changes](https://github.com/jjlabsio/claude-crew/compare/v0.1.21...v0.1.22)
+
+### 🚀 Enhancements
+
+- **crew-dev:** Use Claude EnterWorktree instead of manual git worktree ([#16](https://github.com/jjlabsio/claude-crew/pull/16))
+
+### ❤️ Contributors
+
+- Jaejin Song ([@jjlabsio](https://github.com/jjlabsio))
+
 ## v0.1.21
 
 [compare changes](https://github.com/jjlabsio/claude-crew/compare/v0.1.20...v0.1.21)
