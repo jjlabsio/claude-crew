@@ -1,6 +1,18 @@
 # Changelog
 
 
+## v0.1.26
+
+[compare changes](https://github.com/jjlabsio/claude-crew/compare/v0.1.25...v0.1.26)
+
+### 🚀 Enhancements
+
+- US 단위 증분 개발 루프 ([#20](https://github.com/jjlabsio/claude-crew/pull/20))
+
+### ❤️ Contributors
+
+- Jaejin Song ([@jjlabsio](https://github.com/jjlabsio))
+
 ## v0.1.25
 
 [compare changes](https://github.com/jjlabsio/claude-crew/compare/v0.1.24...v0.1.25)
