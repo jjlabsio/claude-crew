@@ -386,6 +386,9 @@ review.md가 정상적으로 작성되었고 판정이 PASS임을 확인한다.
 ## 검증 이력
 PlanEvaluator PASS — review.md 참조
 
+## 워크트리
+mode: new
+
 ## 상태
 ACTIVE
 ```

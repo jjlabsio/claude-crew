@@ -134,9 +134,20 @@ contract.md 유효성 검사에 실패했습니다.
 [3] 이 태스크를 보류
 ```
 
-**1c. 워크트리 생성**
+**1c. 워크트리 결정**
 
-Claude Code의 `EnterWorktree` 도구를 사용한다:
+기존 워크트리를 이어쓸지, 새로 만들지 판단한다.
+
+**판단 순서** (위가 우선):
+
+1. contract.md에 `## 워크트리` 섹션이 있으면 그 값을 따른다:
+   - `mode: continue` + `branch: {브랜치명}` → 경로 B (이어가기)
+   - `mode: new` 또는 섹션 없음 → 경로 A (신규)
+2. `## 워크트리` 섹션이 없으면, 현재 호출 위치를 확인한다:
+   - 현재 디렉토리가 `.claude/worktrees/` 하위이고 해당 워크트리의 task-id가 일치하면 → 경로 B
+   - 그 외 → 경로 A
+
+**경로 A — 신규 워크트리**
 
 ```
 EnterWorktree(name="feat/{task-id}")
@@ -149,8 +160,22 @@ git fetch origin main
 git reset --hard origin/main
 ```
 
-이후 모든 작업은 워크트리에서 수행한다.
 환경 파일(`.env*` 등)이 원본 프로젝트에 있으면 복사한다.
+
+**경로 B — 기존 워크트리 이어가기**
+
+- `EnterWorktree` 호출하지 않는다 (이미 진입 상태이거나, contract.md 지정 브랜치의 워크트리가 존재).
+- `git reset --hard` 하지 않는다 — 기존 커밋을 보존한다.
+- 현재 상태만 확인한다:
+
+```bash
+git log --oneline -5
+git diff --stat
+```
+
+- "기존 워크트리에서 작업을 이어갑니다" 로그를 출력한다.
+
+이후 모든 작업은 워크트리에서 수행한다.
 
 **1d. 상태 갱신**
 
