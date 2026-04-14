@@ -1,6 +1,18 @@
 # Changelog
 
 
+## v0.1.27
+
+[compare changes](https://github.com/jjlabsio/claude-crew/compare/v0.1.26...v0.1.27)
+
+### 🚀 Enhancements
+
+- **crew-dev:** Dev 에이전트 crash recovery — 롤백 후 재시도 및 provider 자동 전환 ([#21](https://github.com/jjlabsio/claude-crew/pull/21))
+
+### ❤️ Contributors
+
+- Jaejin Song ([@jjlabsio](https://github.com/jjlabsio))
+
 ## v0.1.26
 
 [compare changes](https://github.com/jjlabsio/claude-crew/compare/v0.1.25...v0.1.26)
