@@ -88,6 +88,8 @@ Bash("codex exec --model {model} -c model_reasoning_effort=\"{reasoning}\" --dan
   final-review-report.md    # CodeReviewer: 최종 전체 리뷰 결과
   final-qa-report.md        # QA: 최종 전체 검증 결과
   .dev_loop_count           # US별 개발 루프 카운터 (US PASS 시 리셋)
+  .dev_crash_count          # US별 구현 crash 카운터 (US PASS 시 리셋)
+  .dev_crash_provider       # crash 발생 시 현재 사용 중인 provider ("codex" 또는 "claude")
 ```
 
 ---
@@ -329,6 +331,74 @@ Codex stdout을 캡처하여 dev-log.md의 US-{k} 섹션으로 추가한다.
 
 **retry 시 (codex provider)**: 프롬프트에 review-report-{n}.md와 qa-report-{n}.md 내용을 인라인 삽입한다.
 
+##### Step 1a — Dev 에이전트 crash 감지 및 복구
+
+Dev 에이전트(claude 또는 codex)가 정상 완료하지 못한 경우를 처리한다.
+
+**crash 판정 기준:**
+
+| Provider | crash 신호 |
+|----------|-----------|
+| codex | Bash exit code != 0, timeout |
+| claude | Agent 결과에 자체 검증 결과(PASS/FAIL) 미선언, 비정상 종료 |
+
+**crash가 아닌 경우** (정상 완료): Step 2로 진행한다.
+
+**crash인 경우**:
+
+**1a-1. 부분 변경 롤백**
+
+```bash
+git reset --hard HEAD
+```
+
+마지막 체크포인트 커밋(이전 US의 커밋 또는 워크트리 초기 상태)으로 복귀한다. 부분 구현을 이어받지 않는다 — 컨텍스트 손실로 인한 코드 불일치 리스크를 제거하기 위함이다.
+
+**1a-2. crash 카운터 읽기**
+
+`.crew/plans/{task-id}/.dev_crash_count` 파일을 읽는다.
+- 파일이 없으면 카운터 = 0
+- 파일이 있으면 파일 내용(정수)이 카운터 값
+
+`.crew/plans/{task-id}/.dev_crash_provider` 파일을 읽는다.
+- 파일이 없으면 현재 provider 설정값
+
+**1a-3. 재시도 또는 provider 전환 판단**
+
+```
+crash 카운터 < 2 → 같은 provider로 재시도 (Step 1로)
+crash 카운터 >= 2 AND 현재 provider가 codex → claude로 전환, 카운터 리셋 (Step 1로)
+crash 카운터 >= 2 AND 현재 provider가 claude → 유저 에스컬레이션
+```
+
+**provider 전환 시:**
+- `.dev_crash_count`를 0으로 리셋한다.
+- `.dev_crash_provider`를 전환된 provider로 갱신한다.
+- 이후 Step 1에서 전환된 provider로 디스패치한다.
+
+**에스컬레이션 메시지:**
+
+```
+US-{k} 구현이 반복 실패합니다.
+- 원래 provider: {원래 provider} (2회 crash)
+- 전환 provider: {전환 provider} (2회 crash)
+[1] plan.md에서 US-{k}를 더 작게 분할
+[2] 수동으로 구현
+[3] 이 태스크를 보류
+```
+
+에스컬레이션 시:
+- `.dev_crash_count`, `.dev_crash_provider` 파일을 삭제한다.
+- contract.md 상태를 `BLOCKED — US-{k} 구현 crash`로 갱신한다.
+- `ExitWorktree(action="keep")`으로 원본 프로젝트 디렉토리로 복귀한다.
+
+**1a-4. crash 카운터 증가 저장**
+
+`카운터 + 1`을 `.dev_crash_count` 파일에 저장한다.
+현재 provider를 `.dev_crash_provider` 파일에 저장한다.
+
+Step 1로 돌아간다.
+
 ##### Step 2 — US-k 검증 (CodeReviewer + QA 병렬)
 
 CodeReviewer와 QA를 **동시에** 호출한다. US-k의 변경분만 검증한다.
@@ -434,6 +504,7 @@ git commit --no-verify -m "feat({task-id}): US-{k} {US 제목}"
 > `--no-verify`: 검증 단계에서 이미 빌드/린트/타입/테스트를 통과했으므로 pre-commit hook을 중복 실행하지 않는다.
 
 `.dev_loop_count` 파일이 존재하면 삭제한다 (US-k 루프 카운터 리셋).
+`.dev_crash_count`, `.dev_crash_provider` 파일이 존재하면 삭제한다 (crash 카운터 리셋).
 
 **다음 US 진행**: k를 증가시키고 Step 1로 돌아간다.
 **모든 US 완료**: Phase 3으로 진행한다.
