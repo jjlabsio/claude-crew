@@ -1,6 +1,18 @@
 # Changelog
 
 
+## v0.1.28
+
+[compare changes](https://github.com/jjlabsio/claude-crew/compare/v0.1.27...v0.1.28)
+
+### 🚀 Enhancements
+
+- 태스크 관리 스킬 — /task, /tasks + gitignore 마이그레이션 ([#22](https://github.com/jjlabsio/claude-crew/pull/22))
+
+### ❤️ Contributors
+
+- Jaejin Song ([@jjlabsio](https://github.com/jjlabsio))
+
 ## v0.1.27
 
 [compare changes](https://github.com/jjlabsio/claude-crew/compare/v0.1.26...v0.1.27)
