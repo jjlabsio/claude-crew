@@ -1,6 +1,18 @@
 # Changelog
 
 
+## v0.1.29
+
+[compare changes](https://github.com/jjlabsio/claude-crew/compare/v0.1.28...v0.1.29)
+
+### 💅 Refactors
+
+- Provider 카탈로그 라벨에서 claude 버전 숫자 제거 ([#23](https://github.com/jjlabsio/claude-crew/pull/23))
+
+### ❤️ Contributors
+
+- Jaejin Song ([@jjlabsio](https://github.com/jjlabsio))
+
 ## v0.1.28
 
 [compare changes](https://github.com/jjlabsio/claude-crew/compare/v0.1.27...v0.1.28)
