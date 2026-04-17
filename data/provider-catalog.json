@@ -1,9 +1,9 @@
 {
   "claude": {
     "models": [
-      { "id": "opus", "label": "Opus 4.6 — 최고 품질, 복잡한 구현", "default_for": ["dev", "code-reviewer"] },
-      { "id": "sonnet", "label": "Sonnet 4.6 — 빠르고 저렴, Opus급 성능", "default_for": ["qa"] },
-      { "id": "haiku", "label": "Haiku 4.5 — 최저 비용, 단순 태스크", "default_for": [] }
+      { "id": "opus", "label": "Opus — 최고 품질, 복잡한 구현", "default_for": ["dev", "code-reviewer"] },
+      { "id": "sonnet", "label": "Sonnet — 빠르고 저렴, Opus급 성능", "default_for": ["qa"] },
+      { "id": "haiku", "label": "Haiku — 최저 비용, 단순 태스크", "default_for": [] }
     ]
   },
   "codex": {

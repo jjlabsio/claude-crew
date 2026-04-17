@@ -192,9 +192,9 @@ Provider:
 claude 선택 시:
 ```
 Model:
-  [1] Opus 4.6 — 최고 품질, 복잡한 구현 (추천)
-  [2] Sonnet 4.6 — 빠르고 저렴, Opus급 성능
-  [3] Haiku 4.5 — 최저 비용, 단순 태스크
+  [1] Opus — 최고 품질, 복잡한 구현 (추천)
+  [2] Sonnet — 빠르고 저렴, Opus급 성능
+  [3] Haiku — 최저 비용, 단순 태스크
 ```
 
 codex 선택 시:
