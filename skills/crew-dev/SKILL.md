@@ -29,7 +29,7 @@ description: contract.md를 입력으로 받아 Dev + CodeReviewer + QA 파이�
 
 **해석된 설정 예시:**
 ```json
-{ "provider": "codex", "model": "gpt-5.4", "reasoning": "xhigh" }
+{ "provider": "codex", "model": "gpt-5.5", "reasoning": "high" }
 { "provider": "claude", "model": "opus" }
 ```
 
