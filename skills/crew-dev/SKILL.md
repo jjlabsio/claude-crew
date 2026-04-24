@@ -29,7 +29,7 @@ description: contract.md를 입력으로 받아 Dev + CodeReviewer + QA 파이�
 
 **해석된 설정 예시:**
 ```json
-{ "provider": "codex", "model": "gpt-5.4", "reasoning": "xhigh" }
+{ "provider": "codex", "model": "gpt-5.5", "reasoning": "high" }
 { "provider": "claude", "model": "opus" }
 ```
 
@@ -43,7 +43,7 @@ Agent(subagent_type="{role}", model="{model}", description="...", prompt="...")
 
 **codex provider:**
 ```
-Bash("codex exec --model {model} -c model_reasoning_effort=\"{reasoning}\" --dangerously-bypass-approvals-and-sandbox \"{prompt}\"")
+Bash("codex exec --model {model} -c model_reasoning_effort=\"{reasoning}\" --dangerously-bypass-approvals-and-sandbox \"{prompt}\" < /dev/null")
 ```
 - 프롬프트가 길면 임시 파일에 저장 후 `cat`으로 전달한다.
 - Codex는 CWD 기준으로 작업하므로 워크트리 안에서 실행한다.
@@ -324,7 +324,7 @@ codex exec --model {model} -c model_reasoning_effort="{reasoning}" --dangerously
 - US-{k} 구현 내용 1줄 요약
 - 자체 검증 결과 (각 항목별 PASS/FAIL + 명령어 + 출력)
 PROMPT
-)"
+)" < /dev/null
 ```
 
 Codex stdout을 캡처하여 dev-log.md의 US-{k} 섹션으로 추가한다.
