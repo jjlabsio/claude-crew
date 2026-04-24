@@ -1,6 +1,18 @@
 # Changelog
 
 
+## v0.1.30
+
+[compare changes](https://github.com/jjlabsio/claude-crew/compare/v0.1.29...v0.1.30)
+
+### 🩹 Fixes
+
+- Codex exec stdin hang + gpt-5.5 모델 추가 ([#24](https://github.com/jjlabsio/claude-crew/pull/24))
+
+### ❤️ Contributors
+
+- Jaejin Song ([@jjlabsio](https://github.com/jjlabsio))
+
 ## v0.1.29
 
 [compare changes](https://github.com/jjlabsio/claude-crew/compare/v0.1.28...v0.1.29)
