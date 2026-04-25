@@ -1,6 +1,18 @@
 # Changelog
 
 
+## v0.1.31
+
+[compare changes](https://github.com/jjlabsio/claude-crew/compare/v0.1.30...v0.1.31)
+
+### 🩹 Fixes
+
+- CodeReviewer가 .crew/ 메타 파일을 false positive로 지적하지 않도록 git diff에 pathspec exclude 추가 ([#25](https://github.com/jjlabsio/claude-crew/pull/25))
+
+### ❤️ Contributors
+
+- Jaejin Song ([@jjlabsio](https://github.com/jjlabsio))
+
 ## v0.1.30
 
 [compare changes](https://github.com/jjlabsio/claude-crew/compare/v0.1.29...v0.1.30)
