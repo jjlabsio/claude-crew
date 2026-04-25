@@ -99,7 +99,7 @@ Bash("codex exec --model {model} -c model_reasoning_effort=\"{reasoning}\" --dan
 | 에이전트 | subagent_type | 볼 수 있는 것 | 차단 | 차단 근거 |
 |----------|--------------|-------------|------|----------|
 | **Dev** | dev | plan.md, contract.md | brief.md, spec.md, analysis.md | 의도 추측 방지, plan+contract에 필요 정보 포함 |
-| **CodeReviewer** | code-reviewer | git diff(직접 실행), 가드레일(인라인) | contract.md, plan.md, brief.md, spec.md, dev-log.md | 수용 기준 체리피킹 방지 (.crew/는 .gitignore 대상이므로 diff에 노출되지 않음) |
+| **CodeReviewer** | code-reviewer | git diff(직접 실행, `':!.crew/'` exclude), 가드레일(인라인) | contract.md, plan.md, brief.md, spec.md, dev-log.md | 수용 기준 체리피킹 방지 (.crew/는 git diff 호출 시 pathspec `':!.crew/'`로 명시적 exclude하여 메타 파일 노출 방지) |
 | **QA** | qa | plan.md | contract.md, brief.md, spec.md | 검증 편향 방지 |
 
 **중요**: 모든 에이전트 호출 시 반드시 `subagent_type` 파라미터를 지정해야 한다. `subagent_type`이 없으면 PreToolUse hook이 호출을 차단한다. `model` 파라미터는 생략 가능 — hook이 에이전트 정의에서 자동 주입한다.
@@ -415,7 +415,7 @@ CodeReviewer와 QA를 **동시에** 호출한다. US-k의 변경분만 검증한
 당신은 CodeReviewer 에이전트다. 코드 변경 사항의 품질을 판단한다.
 
 ## 입력
-`git diff HEAD`를 직접 실행하여 마지막 커밋 이후 변경 사항을 확인하라.
+`git diff HEAD -- ':!.crew/'`를 직접 실행하여 마지막 커밋 이후의 **코드 산출물 변경 사항만** 확인하라. (`.crew/` 디렉토리는 crew-dev 파이프라인의 메타 파일로, 본 리뷰 범위가 아니다.)
 contract.md, plan.md, brief.md, spec.md, dev-log.md는 읽지 않는다.
 코드만 보고 판단한다.
 
@@ -591,7 +591,7 @@ CodeReviewer와 QA를 **동시에** 호출한다.
 당신은 CodeReviewer 에이전트다. 전체 코드 변경 사항의 품질을 판단한다.
 
 ## 입력
-`git diff main...HEAD`를 직접 실행하여 전체 변경 사항을 확인하라.
+`git diff main...HEAD -- ':!.crew/'`를 직접 실행하여 전체 **코드 산출물 변경 사항만** 확인하라. (`.crew/` 디렉토리는 crew-dev 파이프라인의 메타 파일로, 본 리뷰 범위가 아니다.)
 contract.md, plan.md, brief.md, spec.md, dev-log.md는 읽지 않는다.
 코드만 보고 판단한다.
 
