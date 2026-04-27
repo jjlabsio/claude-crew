@@ -17,6 +17,7 @@
     "solo-developer"
   ],
   "agents": [
+    "./agents/pm.md",
     "./agents/planner.md",
     "./agents/dev.md",
     "./agents/qa.md",

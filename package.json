@@ -23,6 +23,7 @@
     "hooks/",
     "hud/",
     "scripts/",
+    "THIRD_PARTY_NOTICES.md",
     "README.md",
     "LICENSE"
   ],

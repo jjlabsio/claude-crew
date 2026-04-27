@@ -34,6 +34,12 @@ description: 유저 요구사항을 인터뷰하여 개발 가능한 수준의 s
 
 ## 실행 순서
 
+PM 판단/질문/spec 작성 단계도 provider 설정 대상이다. 오케스트레이터는 `pm` 설정을 해석한 뒤 아래 인터뷰 로직을 PM 작업 프롬프트로 구성하여 `runAgent(role="pm", ...)`로 실행한다.
+
+- PM이 Claude provider이면 기존처럼 `AskUserQuestion`, Read/Write를 사용할 수 있다.
+- PM이 Codex provider이면 직접 질문하거나 `.crew/` 파일을 쓰지 않는다. 질문이 필요하면 `blocked_on_user`, 추가 탐색이 필요하면 `needs_agent`, 최종 spec은 `complete.artifact`로 반환한다.
+- Codex PM의 `artifact`는 오케스트레이터가 `.crew/plans/{task-id}/spec.md`로 저장한다.
+
 ### Phase 1 — 초기화 (자동)
 
 **1a. task-id 생성 + brief.md 작성**
@@ -46,7 +52,7 @@ task-id는 요청 내용에서 키워드를 추출하여 kebab-case로 생성한
 Explorer 서브에이전트를 병렬로 호출하여 프로젝트 구조를 파악한다.
 
 ```
-Agent(subagent_type="explorer", description="프로젝트 구조 탐색", prompt="...")
+runAgent(role="explorer", description="프로젝트 구조 탐색", prompt="...")
 ```
 
 탐색 목적:
@@ -124,7 +130,7 @@ NO 항목 중 **가장 선행되어야 할 것**을 선택한다.
 예: 유저가 "기존 결제 로직에 추가"라고 답하면 결제 관련 코드를 탐색.
 
 ```
-Agent(subagent_type="explorer", description="결제 관련 코드 탐색", prompt="...")
+runAgent(role="explorer", description="결제 관련 코드 탐색", prompt="...")
 ```
 
 **2e. 유저 답변 수신 + 큰 기획 갭 감지**
@@ -299,12 +305,34 @@ spec.md를 작성했습니다. 검토해주세요.
 
 ## 에이전트 호출 규칙
 
-| 에이전트 | subagent_type | 모델 | 용도 | 호출 시점 |
-|----------|--------------|------|------|----------|
-| Explorer | explorer | haiku | 코드베이스 탐색 (read-only) | Phase 1b (필수), Phase 2d (필요 시) |
-| Researcher | researcher | sonnet | 외부 조사 (WebSearch) | Phase 2 중 필요 시 |
+오케스트레이터는 모든 에이전트를 `runAgent(role, prompt, providerConfig)` 규칙으로 호출한다.
 
-**중요**: 모든 에이전트 호출 시 반드시 `subagent_type` 파라미터를 지정해야 한다. `subagent_type`이 없으면 PreToolUse hook이 호출을 차단한다. `model` 파라미터는 생략 가능 — hook이 에이전트 정의에서 자동 주입한다.
+- Claude provider: `Agent(subagent_type="{role}", model="{model}", description="...", prompt="...")`
+- Codex provider: `node "${CLAUDE_PLUGIN_ROOT}/scripts/crew-codex-companion.mjs" task --json --expect-crew-result --model {model} --effort {reasoning} --prompt-file {promptFile}`
+- `data/provider-catalog.json`의 `agent_runtime.{role}.codex_sandbox`가 `workspace-write`일 때만 `--write`를 붙인다. interview 단계 에이전트는 모두 read-only다.
+- Codex provider는 `.crew/` 파일을 직접 읽거나 쓰지 않는다. 필요한 컨텍스트는 오케스트레이터가 프롬프트에 인라인 주입하고, 산출물은 `artifact`로 반환받아 오케스트레이터가 저장한다.
+
+| 에이전트 | subagent_type | 기본 provider/model | 용도 | 호출 시점 |
+|----------|--------------|------|------|----------|
+| Explorer | explorer | `agent_defaults.explorer` | 코드베이스 탐색 (read-only) | Phase 1b (필수), Phase 2d (필요 시) |
+| Researcher | researcher | `agent_defaults.researcher` | 외부 조사 (WebSearch) | Phase 2 중 필요 시 |
+
+**중요**: provider/model은 `.crew/config.json`, `~/.claude/crew/config.json`, `data/provider-catalog.json`의 `agent_defaults` 순서로 해석한다.
+
+Codex provider 결과는 마지막 `<crew-agent-result>` 블록으로 파싱한다.
+
+```json
+{
+  "status": "complete | blocked_on_user | needs_agent | needs_tool | failed",
+  "artifact": "최종 산출물 또는 결과",
+  "questions": [],
+  "requests": [],
+  "summary": "짧은 요약",
+  "error": null
+}
+```
+
+`blocked_on_user`는 오케스트레이터가 `AskUserQuestion`으로 처리하고, `needs_agent`는 요청된 role을 다시 `runAgent`로 실행한 뒤 결과를 원래 에이전트에 `--resume-last`로 주입한다.
 
 ---
 

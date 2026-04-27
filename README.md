@@ -86,6 +86,16 @@ Claude Code에서:
 | **CodeReviewer** | 코드 리뷰 | dev |
 | **QA** | 실행 검증 | dev |
 
+## 모델 설정
+
+`/crew-setup`에서 에이전트별 provider/model을 설정합니다. 설정하지 않은 에이전트는 `data/provider-catalog.json`의 `agent_defaults`를 따릅니다.
+
+기본값은 기존 에이전트 frontmatter 모델을 따르되, Dev와 CodeReviewer는 Codex `gpt-5.5 medium`을 사용합니다. Claude 모델은 `opus`, `sonnet`, `haiku` latest alias와 `claude-opus-4-7` 같은 버전 고정 ID를 모두 선택할 수 있습니다.
+
+Claude provider는 Claude Code `Agent`로 실행하고, Codex provider는 플러그인에 내장된 `scripts/crew-codex-companion.mjs` app-server runtime으로 실행합니다. 에이전트가 유저 질문이나 다른 에이전트 호출이 필요하면 직접 처리하지 않고 오케스트레이터가 이어받아 실행합니다.
+
+Provider와 무관하게 에이전트 결과는 `complete`, `blocked_on_user`, `needs_agent`, `needs_tool`, `failed` 상태 중 하나로 해석합니다. Claude Code 전용 도구가 필요한 경우에도 Codex provider는 요청 상태를 반환하고, 실제 도구 실행은 오케스트레이터가 담당합니다.
+
 ## 상태 파일
 
 프로젝트 로컬 `.crew/` 디렉토리에 마크다운 파일로 상태를 관리합니다 (git tracked). 플러그인 업데이트 시에도 학습 내용과 상태는 보존됩니다.
@@ -111,4 +121,4 @@ Claude Code에서:
 
 ## License
 
-MIT
+MIT. This project also includes Apache-2.0 third-party components under `scripts/crew-codex/`; see `THIRD_PARTY_NOTICES.md`.

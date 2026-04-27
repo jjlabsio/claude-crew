@@ -40,6 +40,12 @@ crew-interview가 생성한 spec.md를 입력으로 받아 **HOW(어떻게 만�
 
 ## 실행 순서
 
+TechLead, Planner, PlanEvaluator는 모두 provider 설정 대상이다. 오케스트레이터는 각 단계에서 `runAgent(role, prompt, providerConfig)`를 사용한다.
+
+- Claude provider이면 기존 Claude Code `Agent` 호출을 사용한다.
+- Codex provider이면 read-only companion task를 사용하고, 산출물은 `<crew-agent-result>.artifact`로 반환받아 오케스트레이터가 `.crew/` 파일에 저장한다.
+- Codex TechLead/Planner가 Explorer/Researcher가 필요하면 직접 호출하지 않고 `needs_agent`를 반환한다. 오케스트레이터가 요청된 에이전트를 실행한 뒤 결과를 원래 Codex thread에 `--resume-last`로 주입한다.
+
 ### Step 1 — spec.md 유효성 검사 (오케스트레이터 직접)
 
 `.crew/plans/{task-id}/spec.md`를 확인한다.
@@ -58,9 +64,9 @@ spec.md가 없거나 비어 있습니다. crew-interview를 먼저 실행해야 
 
 ### Step 2 — TechLead 에이전트 실행
 
-**모델**: opus
+**provider/model**: 설정 resolver가 결정한다 (기본값: `agent_defaults.techlead`).
 
-호출:
+Claude provider 호출 예:
 
 ```
 Agent(subagent_type="techlead", description="TechLead: {task-id} 사전 분석", prompt="...")
@@ -79,14 +85,14 @@ WHAT(무엇을 만드는가)은 이미 정의되어 있으므로, HOW(어떻게 
 
 ## 서브에이전트 호출
 - Explorer (Haiku): 코드베이스 탐색. 항상 호출. 병렬 2-3개로 호출하라.
-  Agent(subagent_type="explorer", description="코드베이스 탐색: {탐색 대상}", prompt="...")
+  runAgent(role="explorer", description="코드베이스 탐색: {탐색 대상}", prompt="...")
   **필수 탐색 항목**: 테스트 인프라도 반드시 탐색한다. Explorer 중 1개는 다음을 확인:
   - 테스트 프레임워크 설정 파일 (jest.config.*, vitest.config.*, pytest.ini 등)
   - 대표적인 테스트 파일 2-3개의 패턴
   - 커버리지 설정 여부
   - 테스트 실행 스크립트 (package.json scripts 등)
 - Researcher (Sonnet): 외부 리서치. 필요시만 호출.
-  Agent(subagent_type="researcher", description="외부 리서치: {리서치 대상}", prompt="...")
+  runAgent(role="researcher", description="외부 리서치: {리서치 대상}", prompt="...")
   **외부 API/서비스가 관련된 경우**: spec.md에 언급된 각 외부 대상(엔드포인트, 서비스, 플랫폼)에 대해 **개별적으로** 문서/인터페이스를 조사하라. 하나의 대상에 대한 문서를 다른 대상에 일반화하지 않는다. 문서가 확인되지 않는 대상은 "미검증 인터페이스"로 명시한다.
 
 ## 출력
@@ -152,9 +158,9 @@ TechLead의 analysis.md에서 테스트 인프라 섹션을 확인한 후, 오�
 
 ### Step 3 — Planner 에이전트 실행
 
-**모델**: opus
+**provider/model**: 설정 resolver가 결정한다 (기본값: `agent_defaults.planner`).
 
-호출:
+Claude provider 호출 예:
 
 ```
 Agent(subagent_type="planner", description="Planner: {task-id} 구현 계획", prompt="...")
@@ -258,9 +264,9 @@ plan.md 최상단에 "이전 피드백 반영" 섹션을 추가한다.
 
 ### Step 4 — PlanEvaluator 에이전트 실행
 
-**모델**: sonnet (하드 임계값 판정에서 Opus 합리화 방지)
+**provider/model**: 설정 resolver가 결정한다 (기본값: `agent_defaults.plan-evaluator`).
 
-호출:
+Claude provider 호출 예:
 
 ```
 Agent(subagent_type="plan-evaluator", description="PlanEvaluator: {task-id} 계획 검증", prompt="...")
@@ -307,7 +313,7 @@ Agent(subagent_type="plan-evaluator", description="PlanEvaluator: {task-id} 계�
 
 ## E3 코드 참조 확인
 Explorer 서브에이전트를 호출하여 plan.md에서 참조하는 파일/모듈이 존재하는지 확인하라.
-Agent(subagent_type="explorer", description="코드 참조 확인: {파일 목록 요약}", prompt="plan.md에서 참조하는 다음 파일/모듈이 존재하는지 확인하라: {파일 목록}")
+runAgent(role="explorer", description="코드 참조 확인: {파일 목록 요약}", prompt="plan.md에서 참조하는 다음 파일/모듈이 존재하는지 확인하라: {파일 목록}")
 
 ## 출력
 아래 형식으로 검증 결과를 텍스트로 반환하라. 파일을 직접 작성하지 않는다.
@@ -486,14 +492,36 @@ Planner + PlanEvaluator 사이클은 최대 5회 (초기 1회 + retry 최대 4�
 
 ## 에이전트 호출 컨텍스트 규칙
 
-| 에이전트 | subagent_type | 모델 | 주입할 파일 | 차단할 파일 |
-|----------|--------------|------|------------|------------|
-| TechLead | techlead | opus | spec.md | — |
-| Planner (첫 번째) | planner | opus | spec.md + analysis.md | brief.md |
-| Planner (retry) | planner | opus | spec.md + analysis.md + review-{n}.md | brief.md |
-| PlanEvaluator | plan-evaluator | sonnet | spec.md + analysis.md + plan.md | brief.md |
+오케스트레이터는 모든 에이전트를 `runAgent(role, prompt, providerConfig)` 규칙으로 호출한다.
 
-**중요**: 모든 에이전트 호출 시 반드시 `subagent_type` 파라미터를 지정해야 한다. `subagent_type`이 없으면 PreToolUse hook이 호출을 차단한다. `model` 파라미터는 생략 가능 — hook이 에이전트 정의에서 자동 주입한다.
+- Claude provider: `Agent(subagent_type="{role}", model="{model}", description="...", prompt="...")`
+- Codex provider: `node "${CLAUDE_PLUGIN_ROOT}/scripts/crew-codex-companion.mjs" task --json --expect-crew-result --model {model} --effort {reasoning} --prompt-file {promptFile}`
+- `data/provider-catalog.json`의 `agent_runtime.{role}.codex_sandbox`가 `workspace-write`일 때만 `--write`를 붙인다. plan 단계 에이전트는 모두 read-only다.
+- Codex provider는 `.crew/` 파일을 직접 읽거나 쓰지 않는다. 필요한 `spec.md`, `analysis.md`, `plan.md`, `review-{n}.md` 내용은 오케스트레이터가 프롬프트에 인라인 주입한다.
+
+| 에이전트 | subagent_type | 기본 provider/model | 주입할 파일 | 차단할 파일 |
+|----------|--------------|------|------------|------------|
+| TechLead | techlead | `agent_defaults.techlead` | spec.md | — |
+| Planner (첫 번째) | planner | `agent_defaults.planner` | spec.md + analysis.md | brief.md |
+| Planner (retry) | planner | `agent_defaults.planner` | spec.md + analysis.md + review-{n}.md | brief.md |
+| PlanEvaluator | plan-evaluator | `agent_defaults.plan-evaluator` | spec.md + analysis.md + plan.md | brief.md |
+
+**중요**: provider/model은 `.crew/config.json`, `~/.claude/crew/config.json`, `data/provider-catalog.json`의 `agent_defaults` 순서로 해석한다. Claude provider는 `Agent(subagent_type=..., model=...)`로 호출하고, Codex provider는 `scripts/crew-codex-companion.mjs task`로 호출한다.
+
+Codex provider 결과는 마지막 `<crew-agent-result>` 블록으로 파싱한다.
+
+```json
+{
+  "status": "complete | blocked_on_user | needs_agent | needs_tool | failed",
+  "artifact": "최종 산출물 또는 결과",
+  "questions": [],
+  "requests": [],
+  "summary": "짧은 요약",
+  "error": null
+}
+```
+
+`blocked_on_user`는 오케스트레이터가 `AskUserQuestion`으로 처리한다. `needs_agent`는 Explorer/Researcher 등 요청된 role을 `runAgent`로 실행한 뒤 결과를 원래 에이전트에 `--resume-last`로 주입한다. 한 에이전트 실행의 후속 루프는 최대 5회다.
 
 ---
 

@@ -1,0 +1,863 @@
+#!/usr/bin/env node
+// SPDX-License-Identifier: Apache-2.0
+// Derived from @openai/codex-plugin-cc and modified for claude-crew.
+
+import { spawn } from "node:child_process";
+import fs from "node:fs";
+import path from "node:path";
+import process from "node:process";
+import { fileURLToPath } from "node:url";
+
+import { parseArgs, splitRawArgumentString } from "./crew-codex/lib/args.mjs";
+import {
+    buildPersistentTaskThreadName,
+    DEFAULT_CONTINUE_PROMPT,
+    findLatestTaskThread,
+    getCodexAvailability,
+    interruptAppServerTurn,
+    runAppServerTurn
+  } from "./crew-codex/lib/codex.mjs";
+import { readStdinIfPiped } from "./crew-codex/lib/fs.mjs";
+import { terminateProcessTree } from "./crew-codex/lib/process.mjs";
+import {
+  generateJobId,
+  listJobs,
+  updateJobStateAndFile,
+  updateState,
+  upsertJob,
+  writeJobFile
+} from "./crew-codex/lib/state.mjs";
+import {
+  buildSingleJobSnapshot,
+  buildStatusSnapshot,
+  readStoredJob,
+  resolveCancelableJob,
+  resolveResultJob,
+  sortJobsNewestFirst
+} from "./crew-codex/lib/job-control.mjs";
+import {
+  appendLogLine,
+  createJobLogFile,
+  createJobProgressUpdater,
+  createJobRecord,
+  createProgressReporter,
+  nowIso,
+  runTrackedJob,
+  SESSION_ID_ENV
+} from "./crew-codex/lib/tracked-jobs.mjs";
+import { resolveWorkspaceRoot } from "./crew-codex/lib/workspace.mjs";
+import {
+  renderStoredJobResult,
+  renderCancelReport,
+  renderJobStatusReport,
+  renderStatusReport,
+  renderTaskResult
+} from "./crew-codex/lib/render.mjs";
+
+const ROOT_DIR = path.resolve(fileURLToPath(new URL("..", import.meta.url)));
+const DEFAULT_STATUS_WAIT_TIMEOUT_MS = 240000;
+const DEFAULT_STATUS_POLL_INTERVAL_MS = 2000;
+const VALID_REASONING_EFFORTS = new Set(["none", "minimal", "low", "medium", "high", "xhigh"]);
+const MODEL_ALIASES = new Map([["spark", "gpt-5.3-codex-spark"]]);
+const STOP_REVIEW_TASK_MARKER = "Run a stop-gate review of the previous Claude turn.";
+const CREW_AGENT_RESULT_PATTERN = /<crew-agent-result>\s*([\s\S]*?)\s*<\/crew-agent-result>/g;
+const CREW_AGENT_RESULT_STATUSES = new Set([
+  "complete",
+  "blocked_on_user",
+  "needs_agent",
+  "needs_tool",
+  "failed"
+]);
+
+function printUsage() {
+  console.log(
+    [
+      "Usage:",
+      "  node scripts/crew-codex-companion.mjs task [--background] [--write] [--expect-crew-result] [--resume-last|--resume|--fresh] [--model <model|spark>] [--effort <none|minimal|low|medium|high|xhigh>] [prompt]",
+      "  node scripts/crew-codex-companion.mjs status [job-id] [--all] [--json]",
+      "  node scripts/crew-codex-companion.mjs result [job-id] [--json]",
+      "  node scripts/crew-codex-companion.mjs cancel [job-id] [--json]"
+    ].join("\n")
+  );
+}
+
+function outputResult(value, asJson) {
+  if (asJson) {
+    console.log(JSON.stringify(value, null, 2));
+  } else {
+    process.stdout.write(value);
+  }
+}
+
+function outputCommandResult(payload, rendered, asJson) {
+  outputResult(asJson ? payload : rendered, asJson);
+}
+
+function normalizeRequestedModel(model) {
+  if (model == null) {
+    return null;
+  }
+  const normalized = String(model).trim();
+  if (!normalized) {
+    return null;
+  }
+  return MODEL_ALIASES.get(normalized.toLowerCase()) ?? normalized;
+}
+
+function normalizeReasoningEffort(effort) {
+  if (effort == null) {
+    return null;
+  }
+  const normalized = String(effort).trim().toLowerCase();
+  if (!normalized) {
+    return null;
+  }
+  if (!VALID_REASONING_EFFORTS.has(normalized)) {
+    throw new Error(
+      `Unsupported reasoning effort "${effort}". Use one of: none, minimal, low, medium, high, xhigh.`
+    );
+  }
+  return normalized;
+}
+
+function normalizeArgv(argv) {
+  if (argv.length === 1) {
+    const [raw] = argv;
+    if (!raw || !raw.trim()) {
+      return [];
+    }
+    return splitRawArgumentString(raw);
+  }
+  return argv;
+}
+
+function parseCommandInput(argv, config = {}) {
+  return parseArgs(normalizeArgv(argv), {
+    ...config,
+    aliasMap: {
+      C: "cwd",
+      ...(config.aliasMap ?? {})
+    }
+  });
+}
+
+function resolveCommandCwd(options = {}) {
+  return options.cwd ? path.resolve(process.cwd(), options.cwd) : process.cwd();
+}
+
+function resolveCommandWorkspace(options = {}) {
+  return resolveWorkspaceRoot(resolveCommandCwd(options));
+}
+
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function shorten(text, limit = 96) {
+  const normalized = String(text ?? "").trim().replace(/\s+/g, " ");
+  if (!normalized) {
+    return "";
+  }
+  if (normalized.length <= limit) {
+    return normalized;
+  }
+  return `${normalized.slice(0, limit - 3)}...`;
+}
+
+function firstMeaningfulLine(text, fallback) {
+  const line = String(text ?? "")
+    .split(/\r?\n/)
+    .map((value) => value.trim())
+    .find(Boolean);
+  return line ?? fallback;
+}
+
+function validateCrewAgentResult(result) {
+  if (result == null || typeof result !== "object" || Array.isArray(result)) {
+    return "AgentResult must be a JSON object.";
+  }
+
+  if (!CREW_AGENT_RESULT_STATUSES.has(result.status)) {
+    return `AgentResult status must be one of: ${Array.from(CREW_AGENT_RESULT_STATUSES).join(", ")}.`;
+  }
+
+  if ("questions" in result && !Array.isArray(result.questions)) {
+    return "AgentResult questions must be an array when provided.";
+  }
+
+  if ("requests" in result && !Array.isArray(result.requests)) {
+    return "AgentResult requests must be an array when provided.";
+  }
+
+  if (result.status === "blocked_on_user" && (!Array.isArray(result.questions) || result.questions.length === 0)) {
+    return "AgentResult blocked_on_user requires a non-empty questions array.";
+  }
+
+  if (
+    (result.status === "needs_agent" || result.status === "needs_tool") &&
+    (!Array.isArray(result.requests) || result.requests.length === 0)
+  ) {
+    return `AgentResult ${result.status} requires a non-empty requests array.`;
+  }
+
+  return null;
+}
+
+function parseCrewAgentResult(rawOutput, required = false) {
+  const matches = [...String(rawOutput ?? "").matchAll(CREW_AGENT_RESULT_PATTERN)];
+  const latestMatch = matches.at(-1);
+  if (!latestMatch) {
+    return {
+      result: null,
+      error: required ? "Missing <crew-agent-result> block." : null
+    };
+  }
+
+  try {
+    const result = JSON.parse(latestMatch[1]);
+    const validationError = validateCrewAgentResult(result);
+    if (validationError) {
+      return {
+        result,
+        error: validationError
+      };
+    }
+
+    return {
+      result,
+      error: null
+    };
+  } catch (error) {
+    return {
+      result: null,
+      error: `Invalid <crew-agent-result> JSON: ${error instanceof Error ? error.message : String(error)}`
+    };
+  }
+}
+
+function ensureCodexAvailable(cwd) {
+  const availability = getCodexAvailability(cwd);
+  if (!availability.available) {
+    throw new Error("Codex CLI is not installed or is missing required runtime support. Install it with `npm install -g @openai/codex`, then rerun `/crew-setup`.");
+  }
+}
+
+function isActiveJobStatus(status) {
+  return status === "queued" || status === "running";
+}
+
+function getCurrentClaudeSessionId() {
+  return process.env[SESSION_ID_ENV] ?? null;
+}
+
+function filterJobsForCurrentClaudeSession(jobs) {
+  const sessionId = getCurrentClaudeSessionId();
+  if (!sessionId) {
+    return jobs;
+  }
+  return jobs.filter((job) => job.sessionId === sessionId);
+}
+
+function findLatestResumableTaskJob(jobs) {
+  return (
+    jobs.find(
+      (job) =>
+        job.jobClass === "task" &&
+        job.threadId &&
+        job.status !== "queued" &&
+        job.status !== "running"
+    ) ?? null
+  );
+}
+
+async function waitForSingleJobSnapshot(cwd, reference, options = {}) {
+  const timeoutMs = Math.max(0, Number(options.timeoutMs) || DEFAULT_STATUS_WAIT_TIMEOUT_MS);
+  const pollIntervalMs = Math.max(100, Number(options.pollIntervalMs) || DEFAULT_STATUS_POLL_INTERVAL_MS);
+  const deadline = Date.now() + timeoutMs;
+  let snapshot = buildSingleJobSnapshot(cwd, reference);
+
+  while (isActiveJobStatus(snapshot.job.status) && Date.now() < deadline) {
+    await sleep(Math.min(pollIntervalMs, Math.max(0, deadline - Date.now())));
+    snapshot = buildSingleJobSnapshot(cwd, reference);
+  }
+
+  return {
+    ...snapshot,
+    waitTimedOut: isActiveJobStatus(snapshot.job.status),
+    timeoutMs
+  };
+}
+
+async function resolveLatestTrackedTaskThread(cwd, options = {}) {
+  const workspaceRoot = resolveWorkspaceRoot(cwd);
+  const sessionId = getCurrentClaudeSessionId();
+  const jobs = sortJobsNewestFirst(listJobs(workspaceRoot)).filter((job) => job.id !== options.excludeJobId);
+  const visibleJobs = filterJobsForCurrentClaudeSession(jobs);
+  const activeTask = visibleJobs.find((job) => job.jobClass === "task" && (job.status === "queued" || job.status === "running"));
+  if (activeTask) {
+    throw new Error(`Task ${activeTask.id} is still running. Use crew-codex status before continuing it.`);
+  }
+
+  const trackedTask = findLatestResumableTaskJob(visibleJobs);
+  if (trackedTask) {
+    return { id: trackedTask.threadId };
+  }
+
+  if (sessionId) {
+    return null;
+  }
+
+  return findLatestTaskThread(workspaceRoot);
+}
+
+async function executeTaskRun(request) {
+  const workspaceRoot = resolveWorkspaceRoot(request.cwd);
+  ensureCodexAvailable(request.cwd);
+
+  const taskMetadata = buildTaskRunMetadata({
+    prompt: request.prompt,
+    resumeLast: request.resumeLast
+  });
+
+  let resumeThreadId = null;
+  if (request.resumeLast) {
+    const latestThread = await resolveLatestTrackedTaskThread(workspaceRoot, {
+      excludeJobId: request.jobId
+    });
+    if (!latestThread) {
+      throw new Error("No previous Codex task thread was found for this repository.");
+    }
+    resumeThreadId = latestThread.id;
+  }
+
+  if (!request.prompt && !resumeThreadId) {
+    throw new Error("Provide a prompt, a prompt file, piped stdin, or use --resume-last.");
+  }
+
+  const result = await runAppServerTurn(workspaceRoot, {
+    resumeThreadId,
+    prompt: request.prompt,
+    defaultPrompt: resumeThreadId ? DEFAULT_CONTINUE_PROMPT : "",
+    model: request.model,
+    effort: request.effort,
+    sandbox: request.write ? "workspace-write" : "read-only",
+    onProgress: request.onProgress,
+    persistThread: true,
+    threadName: resumeThreadId ? null : buildPersistentTaskThreadName(request.prompt || DEFAULT_CONTINUE_PROMPT)
+  });
+
+  const rawOutput = typeof result.finalMessage === "string" ? result.finalMessage : "";
+  const failureMessage = result.error?.message ?? result.stderr ?? "";
+  const rendered = renderTaskResult(
+    {
+      rawOutput,
+      failureMessage,
+      reasoningSummary: result.reasoningSummary
+    },
+    {
+      title: taskMetadata.title,
+      jobId: request.jobId ?? null,
+      write: Boolean(request.write)
+    }
+  );
+  const payload = {
+    status: result.status,
+    threadId: result.threadId,
+    rawOutput,
+    touchedFiles: result.touchedFiles,
+    reasoningSummary: result.reasoningSummary
+  };
+  if (request.expectCrewResult) {
+    const parsedCrewResult = parseCrewAgentResult(rawOutput, true);
+    payload.crewAgentResult = parsedCrewResult.result;
+    payload.crewAgentResultError = parsedCrewResult.error;
+    if (parsedCrewResult.error && result.status === 0) {
+      payload.status = 1;
+    } else if (parsedCrewResult.result?.status === "failed" && result.status === 0) {
+      payload.status = 1;
+    }
+  }
+
+  return {
+    exitStatus: payload.status,
+    threadId: result.threadId,
+    turnId: result.turnId,
+    payload,
+    rendered,
+    summary: firstMeaningfulLine(rawOutput, firstMeaningfulLine(failureMessage, `${taskMetadata.title} finished.`)),
+    jobTitle: taskMetadata.title,
+    jobClass: "task",
+    write: Boolean(request.write)
+  };
+}
+
+function buildTaskRunMetadata({ prompt, resumeLast = false }) {
+  if (!resumeLast && String(prompt ?? "").includes(STOP_REVIEW_TASK_MARKER)) {
+    return {
+      title: "Codex Stop Gate Review",
+      summary: "Stop-gate review of previous Claude turn"
+    };
+  }
+
+  const title = resumeLast ? "Codex Resume" : "Codex Task";
+  const fallbackSummary = resumeLast ? DEFAULT_CONTINUE_PROMPT : "Task";
+  return {
+    title,
+    summary: shorten(prompt || fallbackSummary)
+  };
+}
+
+function renderQueuedTaskLaunch(payload) {
+  return `${payload.title} started in the background as ${payload.jobId}. Check crew-codex status ${payload.jobId} for progress.\n`;
+}
+
+function getJobKindLabel(kind, jobClass) {
+  if (kind === "adversarial-review") {
+    return "adversarial-review";
+  }
+  return jobClass === "review" ? "review" : "task";
+}
+
+function createCompanionJob({ prefix, kind, title, workspaceRoot, jobClass, summary, write = false }) {
+  return createJobRecord({
+    id: generateJobId(prefix),
+    kind,
+    kindLabel: getJobKindLabel(kind, jobClass),
+    title,
+    workspaceRoot,
+    jobClass,
+    summary,
+    write
+  });
+}
+
+function createTrackedProgress(job, options = {}) {
+  const logFile = options.logFile ?? createJobLogFile(job.workspaceRoot, job.id, job.title);
+  return {
+    logFile,
+    progress: createProgressReporter({
+      stderr: Boolean(options.stderr),
+      logFile,
+      onEvent: createJobProgressUpdater(job.workspaceRoot, job.id)
+    })
+  };
+}
+
+function buildTaskJob(workspaceRoot, taskMetadata, write) {
+  return createCompanionJob({
+    prefix: "task",
+    kind: "task",
+    title: taskMetadata.title,
+    workspaceRoot,
+    jobClass: "task",
+    summary: taskMetadata.summary,
+    write
+  });
+}
+
+function buildTaskRequest({ cwd, model, effort, prompt, write, resumeLast, expectCrewResult, jobId }) {
+  return {
+    cwd,
+    model,
+    effort,
+    prompt,
+    write,
+    resumeLast,
+    expectCrewResult,
+    jobId
+  };
+}
+
+function readTaskPrompt(cwd, options, positionals) {
+  if (options["prompt-file"]) {
+    return fs.readFileSync(path.resolve(cwd, options["prompt-file"]), "utf8");
+  }
+
+  const positionalPrompt = positionals.join(" ");
+  return positionalPrompt || readStdinIfPiped();
+}
+
+function requireTaskRequest(prompt, resumeLast) {
+  if (!prompt && !resumeLast) {
+    throw new Error("Provide a prompt, a prompt file, piped stdin, or use --resume-last.");
+  }
+}
+
+async function runForegroundCommand(job, runner, options = {}) {
+  const { logFile, progress } = createTrackedProgress(job, {
+    logFile: options.logFile,
+    stderr: !options.json
+  });
+  const execution = await runTrackedJob(job, () => runner(progress), { logFile });
+  outputResult(options.json ? execution.payload : execution.rendered, options.json);
+  if (execution.exitStatus !== 0) {
+    process.exitCode = execution.exitStatus;
+  }
+  return execution;
+}
+
+function spawnDetachedTaskWorker(cwd, jobId) {
+  const scriptPath = path.join(ROOT_DIR, "scripts", "crew-codex-companion.mjs");
+  const child = spawn(process.execPath, [scriptPath, "task-worker", "--cwd", cwd, "--job-id", jobId], {
+    cwd,
+    env: process.env,
+    detached: true,
+    stdio: "ignore",
+    windowsHide: true
+  });
+  child.unref();
+  return child;
+}
+
+function attachQueuedWorkerPid(workspaceRoot, jobId, pid) {
+  if (!Number.isFinite(pid)) {
+    return;
+  }
+
+  updateState(workspaceRoot, (state) => {
+    const existingIndex = state.jobs.findIndex((candidate) => candidate.id === jobId);
+    if (existingIndex === -1 || state.jobs[existingIndex].status !== "queued") {
+      return;
+    }
+
+    state.jobs[existingIndex] = {
+      ...state.jobs[existingIndex],
+      pid
+    };
+  });
+}
+
+function markActiveJobCancelled(workspaceRoot, jobId, completedAt, existingFileJob = {}) {
+  const result = updateJobStateAndFile(workspaceRoot, jobId, (existing) => {
+    if (!existing) {
+      return null;
+    }
+    if (existing.status !== "queued" && existing.status !== "running") {
+      return null;
+    }
+
+    const nextJob = {
+      ...existing,
+      status: "cancelled",
+      phase: "cancelled",
+      pid: null,
+      completedAt,
+      updatedAt: completedAt,
+      errorMessage: "Cancelled by user."
+    };
+
+    return {
+      stateJob: nextJob,
+      fileJob: {
+        ...existingFileJob,
+        ...nextJob,
+        cancelledAt: completedAt
+      }
+    };
+  });
+  return result?.job ?? null;
+}
+
+function enqueueBackgroundTask(cwd, job, request) {
+  const { logFile } = createTrackedProgress(job);
+  appendLogLine(logFile, "Queued for background execution.");
+
+  const queuedRecord = {
+    ...job,
+    status: "queued",
+    phase: "queued",
+    pid: null,
+    logFile,
+    request
+  };
+  writeJobFile(job.workspaceRoot, job.id, queuedRecord);
+  upsertJob(job.workspaceRoot, queuedRecord);
+
+  const child = spawnDetachedTaskWorker(cwd, job.id);
+  attachQueuedWorkerPid(job.workspaceRoot, job.id, child.pid ?? null);
+
+  return {
+    payload: {
+      jobId: job.id,
+      status: "queued",
+      title: job.title,
+      summary: job.summary,
+      logFile
+    },
+    logFile
+  };
+}
+
+async function handleTask(argv) {
+  const { options, positionals } = parseCommandInput(argv, {
+    valueOptions: ["model", "effort", "cwd", "prompt-file"],
+    booleanOptions: ["json", "write", "expect-crew-result", "resume-last", "resume", "fresh", "background"],
+    aliasMap: {
+      m: "model"
+    }
+  });
+
+  const cwd = resolveCommandCwd(options);
+  const workspaceRoot = resolveCommandWorkspace(options);
+  const model = normalizeRequestedModel(options.model);
+  const effort = normalizeReasoningEffort(options.effort);
+  const prompt = readTaskPrompt(cwd, options, positionals);
+
+  const resumeLast = Boolean(options["resume-last"] || options.resume);
+  const fresh = Boolean(options.fresh);
+  if (resumeLast && fresh) {
+    throw new Error("Choose either --resume/--resume-last or --fresh.");
+  }
+  const write = Boolean(options.write);
+  const expectCrewResult = Boolean(options["expect-crew-result"]);
+  const taskMetadata = buildTaskRunMetadata({
+    prompt,
+    resumeLast
+  });
+
+  if (options.background) {
+    ensureCodexAvailable(cwd);
+    requireTaskRequest(prompt, resumeLast);
+
+    const job = buildTaskJob(workspaceRoot, taskMetadata, write);
+    const request = buildTaskRequest({
+      cwd,
+      model,
+      effort,
+      prompt,
+      write,
+      resumeLast,
+      expectCrewResult,
+      jobId: job.id
+    });
+    const { payload } = enqueueBackgroundTask(cwd, job, request);
+    outputCommandResult(payload, renderQueuedTaskLaunch(payload), options.json);
+    return;
+  }
+
+  const job = buildTaskJob(workspaceRoot, taskMetadata, write);
+  await runForegroundCommand(
+    job,
+    (progress) =>
+      executeTaskRun({
+        cwd,
+        model,
+        effort,
+        prompt,
+        write,
+        resumeLast,
+        expectCrewResult,
+        jobId: job.id,
+        onProgress: progress
+      }),
+    { json: options.json }
+  );
+}
+
+async function handleTaskWorker(argv) {
+  const { options } = parseCommandInput(argv, {
+    valueOptions: ["cwd", "job-id"]
+  });
+
+  if (!options["job-id"]) {
+    throw new Error("Missing required --job-id for task-worker.");
+  }
+
+  const cwd = resolveCommandCwd(options);
+  const workspaceRoot = resolveCommandWorkspace(options);
+  const storedJob = readStoredJob(workspaceRoot, options["job-id"]);
+  if (!storedJob) {
+    throw new Error(`No stored job found for ${options["job-id"]}.`);
+  }
+  if (storedJob.status !== "queued") {
+    appendLogLine(storedJob.logFile, `Skipping background worker because job is ${storedJob.status}.`);
+    return;
+  }
+
+  const request = storedJob.request;
+  if (!request || typeof request !== "object") {
+    throw new Error(`Stored job ${options["job-id"]} is missing its task request payload.`);
+  }
+
+  const { logFile, progress } = createTrackedProgress(
+    {
+      ...storedJob,
+      workspaceRoot
+    },
+    {
+      logFile: storedJob.logFile ?? null
+    }
+  );
+  await runTrackedJob(
+    {
+      ...storedJob,
+      workspaceRoot,
+      logFile
+    },
+    () =>
+      executeTaskRun({
+        ...request,
+        onProgress: progress
+      }),
+    { logFile }
+  );
+}
+
+async function handleStatus(argv) {
+  const { options, positionals } = parseCommandInput(argv, {
+    valueOptions: ["cwd", "timeout-ms", "poll-interval-ms"],
+    booleanOptions: ["json", "all", "wait"]
+  });
+
+  const cwd = resolveCommandCwd(options);
+  const reference = positionals[0] ?? "";
+  if (reference) {
+    const snapshot = options.wait
+      ? await waitForSingleJobSnapshot(cwd, reference, {
+          timeoutMs: options["timeout-ms"],
+          pollIntervalMs: options["poll-interval-ms"]
+        })
+      : buildSingleJobSnapshot(cwd, reference);
+    outputCommandResult(snapshot, renderJobStatusReport(snapshot.job), options.json);
+    return;
+  }
+
+  if (options.wait) {
+    throw new Error("`status --wait` requires a job id.");
+  }
+
+  const report = buildStatusSnapshot(cwd, { all: options.all });
+  outputResult(options.json ? report : renderStatusReport(report), options.json);
+}
+
+function handleResult(argv) {
+  const { options, positionals } = parseCommandInput(argv, {
+    valueOptions: ["cwd"],
+    booleanOptions: ["json"]
+  });
+
+  const cwd = resolveCommandCwd(options);
+  const reference = positionals[0] ?? "";
+  const { workspaceRoot, job } = resolveResultJob(cwd, reference);
+  const storedJob = readStoredJob(workspaceRoot, job.id);
+  const payload = {
+    job,
+    storedJob
+  };
+
+  outputCommandResult(payload, renderStoredJobResult(job, storedJob), options.json);
+}
+
+function handleTaskResumeCandidate(argv) {
+  const { options } = parseCommandInput(argv, {
+    valueOptions: ["cwd"],
+    booleanOptions: ["json"]
+  });
+
+  const cwd = resolveCommandCwd(options);
+  const workspaceRoot = resolveCommandWorkspace(options);
+  const sessionId = getCurrentClaudeSessionId();
+  const jobs = filterJobsForCurrentClaudeSession(sortJobsNewestFirst(listJobs(workspaceRoot)));
+  const candidate = findLatestResumableTaskJob(jobs);
+
+  const payload = {
+    available: Boolean(candidate),
+    sessionId,
+    candidate:
+      candidate == null
+        ? null
+        : {
+            id: candidate.id,
+            status: candidate.status,
+            title: candidate.title ?? null,
+            summary: candidate.summary ?? null,
+            threadId: candidate.threadId,
+            completedAt: candidate.completedAt ?? null,
+            updatedAt: candidate.updatedAt ?? null
+          }
+  };
+
+  const rendered = candidate
+    ? `Resumable task found: ${candidate.id} (${candidate.status}).\n`
+    : "No resumable task found for this session.\n";
+  outputCommandResult(payload, rendered, options.json);
+}
+
+async function handleCancel(argv) {
+  const { options, positionals } = parseCommandInput(argv, {
+    valueOptions: ["cwd"],
+    booleanOptions: ["json"]
+  });
+
+  const cwd = resolveCommandCwd(options);
+  const reference = positionals[0] ?? "";
+  const { workspaceRoot, job } = resolveCancelableJob(cwd, reference, { env: process.env });
+  const existing = readStoredJob(workspaceRoot, job.id) ?? {};
+  const threadId = existing.threadId ?? job.threadId ?? null;
+  const turnId = existing.turnId ?? job.turnId ?? null;
+  const completedAt = nowIso();
+  const nextJob = markActiveJobCancelled(workspaceRoot, job.id, completedAt, existing);
+  if (!nextJob) {
+    throw new Error(`Job ${job.id} is no longer active.`);
+  }
+
+  const interrupt = await interruptAppServerTurn(cwd, { threadId, turnId });
+  if (interrupt.attempted) {
+    appendLogLine(
+      job.logFile,
+      interrupt.interrupted
+        ? `Requested Codex turn interrupt for ${turnId} on ${threadId}.`
+        : `Codex turn interrupt failed${interrupt.detail ? `: ${interrupt.detail}` : "."}`
+    );
+  }
+
+  terminateProcessTree(job.pid ?? Number.NaN);
+  appendLogLine(job.logFile, "Cancelled by user.");
+
+  const payload = {
+    jobId: job.id,
+    status: "cancelled",
+    title: job.title,
+    turnInterruptAttempted: interrupt.attempted,
+    turnInterrupted: interrupt.interrupted
+  };
+
+  outputCommandResult(payload, renderCancelReport(nextJob), options.json);
+}
+
+async function main() {
+  const [subcommand, ...argv] = process.argv.slice(2);
+  if (!subcommand || subcommand === "help" || subcommand === "--help") {
+    printUsage();
+    return;
+  }
+
+  switch (subcommand) {
+    case "task":
+      await handleTask(argv);
+      break;
+    case "task-worker":
+      await handleTaskWorker(argv);
+      break;
+    case "status":
+      await handleStatus(argv);
+      break;
+    case "result":
+      handleResult(argv);
+      break;
+    case "task-resume-candidate":
+      handleTaskResumeCandidate(argv);
+      break;
+    case "cancel":
+      await handleCancel(argv);
+      break;
+    default:
+      throw new Error(`Unknown subcommand: ${subcommand}`);
+  }
+}
+
+main().catch((error) => {
+  const message = error instanceof Error ? error.message : String(error);
+  process.stderr.write(`${message}\n`);
+  process.exitCode = 1;
+});

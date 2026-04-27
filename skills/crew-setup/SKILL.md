@@ -141,13 +141,19 @@ git rev-parse --show-toplevel
 
 `data/provider-catalog.json`을 읽어 사용 가능한 provider와 model 목록을 로드한다.
 
+카탈로그의 역할:
+- `claude.models`: 선택 가능한 Claude 모델 ID
+- `codex.models`: 선택 가능한 Codex 모델/reasoning 조합
+- `agent_defaults`: 에이전트별 기본 provider/model
+- `agent_runtime`: 에이전트별 Codex sandbox 정책 (`dev`만 `workspace-write`, 나머지는 `read-only`)
+
 ### 3c. Codex CLI 가용성 확인
 
 ```bash
 which codex
 ```
 
-- codex가 없으면: "Codex CLI가 설치되어 있지 않습니다. 모든 에이전트가 Claude를 사용합니다." 안내 후 Step 3를 스킵한다.
+- codex가 없으면: "Codex CLI가 설치되어 있지 않습니다. Codex provider 선택지는 표시하지 않습니다." 안내 후 Claude 모델만 설정한다.
 - codex가 있으면: 계속 진행한다.
 
 ### 3d. 기존 설정 표시
@@ -156,8 +162,14 @@ Step 3a에서 판별된 config 경로의 파일이 있으면 현재 설정을 �
 
 ```
 현재 에이전트 설정:
-  - dev: claude / opus (기본값)
-  - code-reviewer: claude / opus (기본값)
+  - pm: claude / opus (기본값)
+  - techlead: claude / opus (기본값)
+  - planner: claude / opus (기본값)
+  - plan-evaluator: claude / sonnet (기본값)
+  - explorer: claude / haiku (기본값)
+  - researcher: claude / sonnet (기본값)
+  - dev: codex / gpt-5.5 medium (기본값)
+  - code-reviewer: codex / gpt-5.5 medium (기본값)
   - qa: claude / sonnet (기본값)
 ```
 
@@ -167,46 +179,37 @@ Step 3a에서 판별된 config 경로의 파일이 있으면 현재 설정을 �
 
 ```
 설정을 변경할 에이전트를 선택하세요 (쉼표 구분, 엔터 = 스킵):
-  dev, code-reviewer, qa
+  pm, techlead, planner, plan-evaluator, explorer, researcher, dev, code-reviewer, qa
 ```
 
 - 사용자가 엔터만 누르거나 "없음"/"스킵"을 입력하면 Step 3를 종료한다.
-- 예시 입력: `dev`, `dev, code-reviewer`
+- 예시 입력: `planner`, `dev, code-reviewer`
 
 ### 3f. 선택된 에이전트별 설정
 
 선택된 각 에이전트에 대해 순차적으로:
 
-**Provider 선택:**
-```
-── {agent} ──
-Provider:
-  [1] claude
-  [2] codex
-```
+**Model 선택:**
 
-**Model 선택 (provider에 따라 목록이 다름):**
+카탈로그에서 `status: active` 모델 조합을 번호 목록으로 표시한다. 모델 설명은 표시하지 않고 provider/model/reasoning ID만 보여준다. 첫 항목은 항상 기본값이다.
 
-카탈로그에서 해당 provider의 models 배열을 번호 목록으로 표시한다. 1번이 추천.
-
-claude 선택 시:
 ```
 Model:
-  [1] Opus — 최고 품질, 복잡한 구현 (추천)
-  [2] Sonnet — 빠르고 저렴, Opus급 성능
-  [3] Haiku — 최저 비용, 단순 태스크
+  [1] default: {default provider} / {default model} {default reasoning}
+  [2] claude / opus
+  [3] claude / claude-opus-4-7
+  [4] claude / claude-opus-4-6
+  [5] claude / sonnet
+  [6] claude / claude-sonnet-4-6
+  [7] claude / haiku
+  [8] claude / claude-haiku-4-5
+  [9] codex / gpt-5.5 / xhigh
+  [10] codex / gpt-5.5 / high
+  [11] codex / gpt-5.5 / medium
+  ...
 ```
 
-codex 선택 시:
-```
-Model:
-  [1] GPT-5.4 xhigh (추천) — 최고 성능, 토큰 多
-  [2] GPT-5.4 high — 고성능, 균형잡힌 비용
-  [3] GPT-5.4 medium — 빠르고 저렴
-  [4] o3 high — 추론 특화
-  [5] o3 medium — 추론 특화, 저비용
-  [6] GPT-5.4 Mini — 최저 비용
-```
+codex가 설치되어 있지 않으면 codex 항목은 제외한다.
 
 ### 3g. 설정 저장
 
@@ -226,20 +229,21 @@ Model:
 ```json
 {
   "providers": {
-    "dev": { "provider": "codex", "model": "gpt-5.4", "reasoning": "xhigh" }
+    "planner": { "provider": "codex", "model": "gpt-5.5", "reasoning": "high" }
   }
 }
 ```
 
 - claude provider일 때: `reasoning` 필드 생략
 - codex provider일 때: 카탈로그의 `reasoning` 값 포함 (`null`이면 생략)
+- `agent_runtime`은 유저 config에 저장하지 않는다. runtime 권한은 플러그인 카탈로그 정책을 따른다.
 
 ### 3h. 확인 메시지
 
 ```
 ✓ Provider 설정 완료:
-  - dev: codex / gpt-5.4 xhigh
-  - code-reviewer: claude / opus (기본값)
+  - planner: codex / gpt-5.5 high
+  - dev: codex / gpt-5.5 medium (기본값)
   - qa: claude / sonnet (기본값)
 
 설정 파일: ~/.claude/crew/config.json (유저 레벨 — 모든 프로젝트 공유)

@@ -1,26 +1,48 @@
 {
   "claude": {
     "models": [
-      { "id": "opus", "label": "Opus — 최고 품질, 복잡한 구현", "default_for": ["dev", "code-reviewer"] },
-      { "id": "sonnet", "label": "Sonnet — 빠르고 저렴, Opus급 성능", "default_for": ["qa"] },
-      { "id": "haiku", "label": "Haiku — 최저 비용, 단순 태스크", "default_for": [] }
+      { "id": "opus", "status": "active" },
+      { "id": "claude-opus-4-7", "status": "active" },
+      { "id": "claude-opus-4-6", "status": "active" },
+      { "id": "sonnet", "status": "active" },
+      { "id": "claude-sonnet-4-6", "status": "active" },
+      { "id": "haiku", "status": "active" },
+      { "id": "claude-haiku-4-5", "status": "active" }
     ]
   },
   "codex": {
     "models": [
-      { "id": "gpt-5.5", "reasoning": "high", "label": "GPT-5.5 high (추천) — 최고 성능, 균형잡힌 비용", "default_for": ["dev", "code-reviewer"] },
-      { "id": "gpt-5.5", "reasoning": "xhigh", "label": "GPT-5.5 xhigh — 최대 추론, 토큰 多", "default_for": [] },
-      { "id": "gpt-5.5", "reasoning": "medium", "label": "GPT-5.5 medium — 빠르고 저렴", "default_for": [] },
-      { "id": "gpt-5.4", "reasoning": "high", "label": "GPT-5.4 high — 이전 세대, 안정적", "default_for": [] },
-      { "id": "gpt-5.4", "reasoning": "xhigh", "label": "GPT-5.4 xhigh — 이전 세대, 최대 추론", "default_for": [] },
-      { "id": "o3", "reasoning": "high", "label": "o3 high — 추론 특화", "default_for": [] },
-      { "id": "o3", "reasoning": "medium", "label": "o3 medium — 추론 특화, 저비용", "default_for": [] },
-      { "id": "gpt-5.5-mini", "reasoning": null, "label": "GPT-5.5 Mini — 최저 비용", "default_for": ["qa"] }
+      { "id": "gpt-5.5", "reasoning": "xhigh", "status": "active" },
+      { "id": "gpt-5.5", "reasoning": "high", "status": "active" },
+      { "id": "gpt-5.5", "reasoning": "medium", "status": "active" },
+      { "id": "gpt-5.4", "reasoning": "xhigh", "status": "active" },
+      { "id": "gpt-5.4", "reasoning": "high", "status": "active" },
+      { "id": "gpt-5.4", "reasoning": "medium", "status": "active" },
+      { "id": "o3", "reasoning": "high", "status": "active" },
+      { "id": "o3", "reasoning": "medium", "status": "active" },
+      { "id": "gpt-5.5-mini", "reasoning": "medium", "status": "active" }
     ]
   },
   "agent_defaults": {
-    "dev": { "provider": "claude", "model": "opus" },
-    "code-reviewer": { "provider": "claude", "model": "opus" },
-    "qa": { "provider": "claude", "model": "sonnet" }
+    "pm": { "provider": "claude", "model": "opus" },
+    "techlead": { "provider": "claude", "model": "opus" },
+    "planner": { "provider": "claude", "model": "opus" },
+    "plan-evaluator": { "provider": "claude", "model": "sonnet" },
+    "explorer": { "provider": "claude", "model": "haiku" },
+    "researcher": { "provider": "claude", "model": "sonnet" },
+    "qa": { "provider": "claude", "model": "sonnet" },
+    "dev": { "provider": "codex", "model": "gpt-5.5", "reasoning": "medium" },
+    "code-reviewer": { "provider": "codex", "model": "gpt-5.5", "reasoning": "medium" }
+  },
+  "agent_runtime": {
+    "pm": { "codex_sandbox": "read-only" },
+    "techlead": { "codex_sandbox": "read-only" },
+    "planner": { "codex_sandbox": "read-only" },
+    "plan-evaluator": { "codex_sandbox": "read-only" },
+    "explorer": { "codex_sandbox": "read-only" },
+    "researcher": { "codex_sandbox": "read-only" },
+    "qa": { "codex_sandbox": "read-only" },
+    "dev": { "codex_sandbox": "workspace-write" },
+    "code-reviewer": { "codex_sandbox": "read-only" }
   }
 }
