@@ -129,8 +129,16 @@ function maybeRemoveStaleLock(lockDir, options = {}) {
   const staleAfterMs = options.staleAfterMs ?? LOCK_STALE_AFTER_MS;
   const owner = readLockOwner(lockDir);
   const ageMs = getLockAgeMs(lockDir, owner);
-  const ownerAlive = isProcessAlive(owner?.pid);
-  if (!ownerAlive || ageMs >= staleAfterMs) {
+
+  if (!owner) {
+    if (ageMs >= staleAfterMs) {
+      removeStaleLock(lockDir, owner);
+      return true;
+    }
+    return false;
+  }
+
+  if (!isProcessAlive(owner.pid) || ageMs >= staleAfterMs) {
     removeStaleLock(lockDir, owner);
     return true;
   }
