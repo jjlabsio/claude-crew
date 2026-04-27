@@ -526,6 +526,33 @@ function attachQueuedWorkerPid(workspaceRoot, jobId, pid) {
   });
 }
 
+function markActiveJobCancelled(workspaceRoot, jobId, completedAt) {
+  let nextJob = null;
+  updateState(workspaceRoot, (state) => {
+    const existingIndex = state.jobs.findIndex((candidate) => candidate.id === jobId);
+    if (existingIndex === -1) {
+      return;
+    }
+
+    const existing = state.jobs[existingIndex];
+    if (existing.status !== "queued" && existing.status !== "running") {
+      return;
+    }
+
+    nextJob = {
+      ...existing,
+      status: "cancelled",
+      phase: "cancelled",
+      pid: null,
+      completedAt,
+      updatedAt: completedAt,
+      errorMessage: "Cancelled by user."
+    };
+    state.jobs[existingIndex] = nextJob;
+  });
+  return nextJob;
+}
+
 function enqueueBackgroundTask(cwd, job, request) {
   const { logFile } = createTrackedProgress(job);
   appendLogLine(logFile, "Queued for background execution.");
@@ -636,6 +663,10 @@ async function handleTaskWorker(argv) {
   const storedJob = readStoredJob(workspaceRoot, options["job-id"]);
   if (!storedJob) {
     throw new Error(`No stored job found for ${options["job-id"]}.`);
+  }
+  if (storedJob.status !== "queued") {
+    appendLogLine(storedJob.logFile, `Skipping background worker because job is ${storedJob.status}.`);
+    return;
   }
 
   const request = storedJob.request;
@@ -759,6 +790,11 @@ async function handleCancel(argv) {
   const existing = readStoredJob(workspaceRoot, job.id) ?? {};
   const threadId = existing.threadId ?? job.threadId ?? null;
   const turnId = existing.turnId ?? job.turnId ?? null;
+  const completedAt = nowIso();
+  const nextJob = markActiveJobCancelled(workspaceRoot, job.id, completedAt);
+  if (!nextJob) {
+    throw new Error(`Job ${job.id} is no longer active.`);
+  }
 
   const interrupt = await interruptAppServerTurn(cwd, { threadId, turnId });
   if (interrupt.attempted) {
@@ -773,28 +809,10 @@ async function handleCancel(argv) {
   terminateProcessTree(job.pid ?? Number.NaN);
   appendLogLine(job.logFile, "Cancelled by user.");
 
-  const completedAt = nowIso();
-  const nextJob = {
-    ...job,
-    status: "cancelled",
-    phase: "cancelled",
-    pid: null,
-    completedAt,
-    errorMessage: "Cancelled by user."
-  };
-
   writeJobFile(workspaceRoot, job.id, {
     ...existing,
     ...nextJob,
     cancelledAt: completedAt
-  });
-  upsertJob(workspaceRoot, {
-    id: job.id,
-    status: "cancelled",
-    phase: "cancelled",
-    pid: null,
-    errorMessage: "Cancelled by user.",
-    completedAt
   });
 
   const payload = {

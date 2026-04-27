@@ -3,7 +3,7 @@
 import fs from "node:fs";
 import process from "node:process";
 
-import { readJobFile, resolveJobFile, resolveJobLogFile, upsertJob, writeJobFile } from "./state.mjs";
+import { readJobFile, resolveJobFile, resolveJobLogFile, updateState, upsertJob, writeJobFile } from "./state.mjs";
 
 export const SESSION_ID_ENV = "CODEX_COMPANION_SESSION_ID";
 
@@ -141,6 +141,58 @@ function readStoredJobOrNull(workspaceRoot, jobId) {
   return readJobFile(jobFile);
 }
 
+function updateActiveRunningJob(workspaceRoot, jobId, pid, patch) {
+  let updated = false;
+  updateState(workspaceRoot, (state) => {
+    const existingIndex = state.jobs.findIndex((candidate) => candidate.id === jobId);
+    if (existingIndex === -1) {
+      return;
+    }
+
+    const existing = state.jobs[existingIndex];
+    if (existing.status !== "running" || existing.pid !== pid) {
+      return;
+    }
+
+    state.jobs[existingIndex] = {
+      ...existing,
+      ...patch
+    };
+    updated = true;
+  });
+  return updated;
+}
+
+function markJobRunning(workspaceRoot, runningRecord) {
+  let updated = false;
+  updateState(workspaceRoot, (state) => {
+    const timestamp = nowIso();
+    const existingIndex = state.jobs.findIndex((candidate) => candidate.id === runningRecord.id);
+    if (existingIndex === -1) {
+      state.jobs.unshift({
+        createdAt: timestamp,
+        updatedAt: timestamp,
+        ...runningRecord
+      });
+      updated = true;
+      return;
+    }
+
+    const existing = state.jobs[existingIndex];
+    if (existing.status !== "queued") {
+      return;
+    }
+
+    state.jobs[existingIndex] = {
+      ...existing,
+      ...runningRecord,
+      updatedAt: timestamp
+    };
+    updated = true;
+  });
+  return updated;
+}
+
 export async function runTrackedJob(job, runner, options = {}) {
   const runningRecord = {
     ...job,
@@ -150,13 +202,43 @@ export async function runTrackedJob(job, runner, options = {}) {
     pid: process.pid,
     logFile: options.logFile ?? job.logFile ?? null
   };
+  const started = markJobRunning(job.workspaceRoot, runningRecord);
+  if (!started) {
+    appendLogLine(options.logFile ?? job.logFile ?? null, "Job was no longer queued; skipping worker execution.");
+    return {
+      exitStatus: 1,
+      threadId: job.threadId ?? null,
+      turnId: job.turnId ?? null,
+      payload: {
+        status: 1,
+        errorMessage: "Job was no longer queued; skipping worker execution."
+      },
+      rendered: "Job was no longer queued; skipping worker execution.\n",
+      summary: "Job skipped because it was no longer queued."
+    };
+  }
   writeJobFile(job.workspaceRoot, job.id, runningRecord);
-  upsertJob(job.workspaceRoot, runningRecord);
 
   try {
     const execution = await runner();
     const completionStatus = execution.exitStatus === 0 ? "completed" : "failed";
     const completedAt = nowIso();
+    const completionPatch = {
+      status: completionStatus,
+      threadId: execution.threadId ?? null,
+      turnId: execution.turnId ?? null,
+      summary: execution.summary,
+      phase: completionStatus === "completed" ? "done" : "failed",
+      pid: null,
+      completedAt,
+      updatedAt: completedAt
+    };
+    const transitioned = updateActiveRunningJob(job.workspaceRoot, job.id, process.pid, completionPatch);
+    if (!transitioned) {
+      appendLogLine(options.logFile ?? job.logFile ?? null, "Job was no longer active at completion; preserving current job state.");
+      return execution;
+    }
+
     writeJobFile(job.workspaceRoot, job.id, {
       ...runningRecord,
       status: completionStatus,
@@ -168,22 +250,26 @@ export async function runTrackedJob(job, runner, options = {}) {
       result: execution.payload,
       rendered: execution.rendered
     });
-    upsertJob(job.workspaceRoot, {
-      id: job.id,
-      status: completionStatus,
-      threadId: execution.threadId ?? null,
-      turnId: execution.turnId ?? null,
-      summary: execution.summary,
-      phase: completionStatus === "completed" ? "done" : "failed",
-      pid: null,
-      completedAt
-    });
     appendLogBlock(options.logFile ?? job.logFile ?? null, "Final output", execution.rendered);
     return execution;
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
     const existing = readStoredJobOrNull(job.workspaceRoot, job.id) ?? runningRecord;
     const completedAt = nowIso();
+    const failurePatch = {
+      status: "failed",
+      phase: "failed",
+      pid: null,
+      errorMessage,
+      completedAt,
+      updatedAt: completedAt
+    };
+    const transitioned = updateActiveRunningJob(job.workspaceRoot, job.id, process.pid, failurePatch);
+    if (!transitioned) {
+      appendLogLine(options.logFile ?? job.logFile ?? null, "Job was no longer active after failure; preserving current job state.");
+      throw error;
+    }
+
     writeJobFile(job.workspaceRoot, job.id, {
       ...existing,
       status: "failed",
@@ -192,14 +278,6 @@ export async function runTrackedJob(job, runner, options = {}) {
       pid: null,
       completedAt,
       logFile: options.logFile ?? job.logFile ?? existing.logFile ?? null
-    });
-    upsertJob(job.workspaceRoot, {
-      id: job.id,
-      status: "failed",
-      phase: "failed",
-      pid: null,
-      errorMessage,
-      completedAt
     });
     throw error;
   }
