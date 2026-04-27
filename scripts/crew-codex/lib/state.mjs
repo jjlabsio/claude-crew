@@ -334,6 +334,51 @@ export function upsertJob(cwd, jobPatch) {
   });
 }
 
+export function updateJobStateAndFile(cwd, jobId, mutate) {
+  return withStateLock(cwd, () => {
+    const state = loadState(cwd);
+    const timestamp = nowIso();
+    const existingIndex = state.jobs.findIndex((job) => job.id === jobId);
+    const existingJob = existingIndex === -1 ? null : state.jobs[existingIndex];
+    const result = mutate(existingJob, { timestamp });
+    if (!result) {
+      return null;
+    }
+
+    const stateJob = result.stateJob ?? result.job ?? null;
+    if (!stateJob) {
+      return null;
+    }
+
+    const nextStateJob = {
+      ...(existingJob ?? {
+        createdAt: timestamp
+      }),
+      ...stateJob,
+      id: jobId,
+      updatedAt: stateJob.updatedAt ?? timestamp
+    };
+
+    if (existingIndex === -1) {
+      state.jobs.unshift(nextStateJob);
+    } else {
+      state.jobs[existingIndex] = nextStateJob;
+    }
+
+    const nextState = saveStateUnlocked(cwd, state);
+    const fileJob = result.fileJob ?? nextStateJob;
+    if (fileJob) {
+      writeJsonFileAtomic(resolveJobFile(cwd, jobId), fileJob);
+    }
+
+    return {
+      state: nextState,
+      job: nextStateJob,
+      fileJob
+    };
+  });
+}
+
 export function listJobs(cwd) {
   return loadState(cwd).jobs;
 }

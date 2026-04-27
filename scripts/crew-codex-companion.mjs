@@ -22,6 +22,7 @@ import { terminateProcessTree } from "./crew-codex/lib/process.mjs";
 import {
   generateJobId,
   listJobs,
+  updateJobStateAndFile,
   updateState,
   upsertJob,
   writeJobFile
@@ -526,20 +527,16 @@ function attachQueuedWorkerPid(workspaceRoot, jobId, pid) {
   });
 }
 
-function markActiveJobCancelled(workspaceRoot, jobId, completedAt) {
-  let nextJob = null;
-  updateState(workspaceRoot, (state) => {
-    const existingIndex = state.jobs.findIndex((candidate) => candidate.id === jobId);
-    if (existingIndex === -1) {
-      return;
+function markActiveJobCancelled(workspaceRoot, jobId, completedAt, existingFileJob = {}) {
+  const result = updateJobStateAndFile(workspaceRoot, jobId, (existing) => {
+    if (!existing) {
+      return null;
     }
-
-    const existing = state.jobs[existingIndex];
     if (existing.status !== "queued" && existing.status !== "running") {
-      return;
+      return null;
     }
 
-    nextJob = {
+    const nextJob = {
       ...existing,
       status: "cancelled",
       phase: "cancelled",
@@ -548,9 +545,17 @@ function markActiveJobCancelled(workspaceRoot, jobId, completedAt) {
       updatedAt: completedAt,
       errorMessage: "Cancelled by user."
     };
-    state.jobs[existingIndex] = nextJob;
+
+    return {
+      stateJob: nextJob,
+      fileJob: {
+        ...existingFileJob,
+        ...nextJob,
+        cancelledAt: completedAt
+      }
+    };
   });
-  return nextJob;
+  return result?.job ?? null;
 }
 
 function enqueueBackgroundTask(cwd, job, request) {
@@ -791,7 +796,7 @@ async function handleCancel(argv) {
   const threadId = existing.threadId ?? job.threadId ?? null;
   const turnId = existing.turnId ?? job.turnId ?? null;
   const completedAt = nowIso();
-  const nextJob = markActiveJobCancelled(workspaceRoot, job.id, completedAt);
+  const nextJob = markActiveJobCancelled(workspaceRoot, job.id, completedAt, existing);
   if (!nextJob) {
     throw new Error(`Job ${job.id} is no longer active.`);
   }
@@ -808,12 +813,6 @@ async function handleCancel(argv) {
 
   terminateProcessTree(job.pid ?? Number.NaN);
   appendLogLine(job.logFile, "Cancelled by user.");
-
-  writeJobFile(workspaceRoot, job.id, {
-    ...existing,
-    ...nextJob,
-    cancelledAt: completedAt
-  });
 
   const payload = {
     jobId: job.id,
