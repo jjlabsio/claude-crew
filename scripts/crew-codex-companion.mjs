@@ -540,6 +540,8 @@ async function executeTaskRun(request) {
     payload.crewAgentResultError = parsedCrewResult.error;
     if (parsedCrewResult.error && result.status === 0) {
       payload.status = 1;
+    } else if (parsedCrewResult.result?.status === "failed" && result.status === 0) {
+      payload.status = 1;
     }
   }
 

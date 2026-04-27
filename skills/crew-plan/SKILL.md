@@ -495,7 +495,7 @@ Planner + PlanEvaluator 사이클은 최대 5회 (초기 1회 + retry 최대 4�
 오케스트레이터는 모든 에이전트를 `runAgent(role, prompt, providerConfig)` 규칙으로 호출한다.
 
 - Claude provider: `Agent(subagent_type="{role}", model="{model}", description="...", prompt="...")`
-- Codex provider: `node "${CLAUDE_PLUGIN_ROOT}/scripts/crew-codex-companion.mjs" task --expect-crew-result --model {model} --effort {reasoning} --prompt-file {promptFile}`
+- Codex provider: `node "${CLAUDE_PLUGIN_ROOT}/scripts/crew-codex-companion.mjs" task --json --expect-crew-result --model {model} --effort {reasoning} --prompt-file {promptFile}`
 - `data/provider-catalog.json`의 `agent_runtime.{role}.codex_sandbox`가 `workspace-write`일 때만 `--write`를 붙인다. plan 단계 에이전트는 모두 read-only다.
 - Codex provider는 `.crew/` 파일을 직접 읽거나 쓰지 않는다. 필요한 `spec.md`, `analysis.md`, `plan.md`, `review-{n}.md` 내용은 오케스트레이터가 프롬프트에 인라인 주입한다.
 

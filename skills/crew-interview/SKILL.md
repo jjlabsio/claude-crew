@@ -308,7 +308,7 @@ spec.md를 작성했습니다. 검토해주세요.
 오케스트레이터는 모든 에이전트를 `runAgent(role, prompt, providerConfig)` 규칙으로 호출한다.
 
 - Claude provider: `Agent(subagent_type="{role}", model="{model}", description="...", prompt="...")`
-- Codex provider: `node "${CLAUDE_PLUGIN_ROOT}/scripts/crew-codex-companion.mjs" task --expect-crew-result --model {model} --effort {reasoning} --prompt-file {promptFile}`
+- Codex provider: `node "${CLAUDE_PLUGIN_ROOT}/scripts/crew-codex-companion.mjs" task --json --expect-crew-result --model {model} --effort {reasoning} --prompt-file {promptFile}`
 - `data/provider-catalog.json`의 `agent_runtime.{role}.codex_sandbox`가 `workspace-write`일 때만 `--write`를 붙인다. interview 단계 에이전트는 모두 read-only다.
 - Codex provider는 `.crew/` 파일을 직접 읽거나 쓰지 않는다. 필요한 컨텍스트는 오케스트레이터가 프롬프트에 인라인 주입하고, 산출물은 `artifact`로 반환받아 오케스트레이터가 저장한다.
 

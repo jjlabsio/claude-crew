@@ -43,7 +43,7 @@ Agent(subagent_type="{role}", model="{model}", description="...", prompt="...")
 
 **codex provider:**
 ```
-Bash("node \"${CLAUDE_PLUGIN_ROOT}/scripts/crew-codex-companion.mjs\" task {writeFlag} --expect-crew-result --model {model} --effort {reasoning} --prompt-file {promptFile}")
+Bash("node \"${CLAUDE_PLUGIN_ROOT}/scripts/crew-codex-companion.mjs\" task --json {writeFlag} --expect-crew-result --model {model} --effort {reasoning} --prompt-file {promptFile}")
 ```
 - 프롬프트는 임시 파일에 저장하고 `--prompt-file`로 전달한다.
 - `writeFlag`는 `data/provider-catalog.json`의 `agent_runtime.{role}.codex_sandbox`가 `workspace-write`일 때만 `--write`로 설정한다. 기본값은 read-only이며 `dev`만 workspace-write다.
@@ -326,7 +326,7 @@ US-{k}에 해당하는 피드백만 수정한다. 다른 US의 코드를 변경�
 오케스트레이터가 plan.md에서 US-{k} 섹션과 contract.md의 수용 기준을 추출하여 프롬프트에 인라인으로 주입한다.
 
 ```bash
-node "${CLAUDE_PLUGIN_ROOT}/scripts/crew-codex-companion.mjs" task --write --expect-crew-result --model {model} --effort "{reasoning}" --prompt-file "{promptFile}"
+node "${CLAUDE_PLUGIN_ROOT}/scripts/crew-codex-companion.mjs" task --json --write --expect-crew-result --model {model} --effort "{reasoning}" --prompt-file "{promptFile}"
 ```
 
 `{promptFile}` 내용:
@@ -527,7 +527,7 @@ contract.md, brief.md, spec.md는 읽지 않는다.
 Codex provider인 CodeReviewer/QA는 read-only로 실행한다. `--write`를 붙이지 않는다.
 
 ```bash
-node "${CLAUDE_PLUGIN_ROOT}/scripts/crew-codex-companion.mjs" task --expect-crew-result --model {model} --effort "{reasoning}" --prompt-file "{promptFile}"
+node "${CLAUDE_PLUGIN_ROOT}/scripts/crew-codex-companion.mjs" task --json --expect-crew-result --model {model} --effort "{reasoning}" --prompt-file "{promptFile}"
 ```
 
 CodeReviewer/QA Codex 프롬프트도 마지막에 `<crew-agent-result>` 블록을 포함해야 한다. 검토/검증 결과는 `artifact`에 넣고, 판정이 불가능하면 `failed` 또는 `needs_tool`을 반환한다.
