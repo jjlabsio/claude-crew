@@ -202,8 +202,9 @@ function validateCrewAgentResult(result) {
 }
 
 function parseCrewAgentResult(rawOutput, required = false) {
-  const match = CREW_AGENT_RESULT_PATTERN.exec(String(rawOutput ?? ""));
-  if (!match) {
+  const matches = [...String(rawOutput ?? "").matchAll(CREW_AGENT_RESULT_PATTERN)];
+  const latestMatch = matches.at(-1);
+  if (!latestMatch) {
     return {
       result: null,
       error: required ? "Missing <crew-agent-result> block." : null
@@ -211,7 +212,7 @@ function parseCrewAgentResult(rawOutput, required = false) {
   }
 
   try {
-    const result = JSON.parse(match[1]);
+    const result = JSON.parse(latestMatch[1]);
     const validationError = validateCrewAgentResult(result);
     if (validationError) {
       return {
