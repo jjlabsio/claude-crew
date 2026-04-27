@@ -43,9 +43,10 @@ Agent(subagent_type="{role}", model="{model}", description="...", prompt="...")
 
 **codex provider:**
 ```
-Bash("node \"${CLAUDE_PLUGIN_ROOT}/scripts/crew-codex-companion.mjs\" task --write --model {model} --effort {reasoning} --prompt-file {promptFile}")
+Bash("node \"${CLAUDE_PLUGIN_ROOT}/scripts/crew-codex-companion.mjs\" task {writeFlag} --expect-crew-result --model {model} --effort {reasoning} --prompt-file {promptFile}")
 ```
 - 프롬프트는 임시 파일에 저장하고 `--prompt-file`로 전달한다.
+- `writeFlag`는 `data/provider-catalog.json`의 `agent_runtime.{role}.codex_sandbox`가 `workspace-write`일 때만 `--write`로 설정한다. 기본값은 read-only이며 `dev`만 workspace-write다.
 - Codex는 CWD 기준으로 작업하므로 워크트리 안에서 실행한다.
 - Codex app-server thread id와 stdout에서 결과를 캡처한다.
 - 같은 Codex 작업을 이어갈 때는 `--resume-last`를 사용한다.
@@ -54,6 +55,35 @@ Bash("node \"${CLAUDE_PLUGIN_ROOT}/scripts/crew-codex-companion.mjs\" task --wri
 - Codex는 Claude Code의 Read/Edit/Glob 도구가 아닌 자체 도구를 사용한다.
 - Codex 에이전트는 `.crew/` 접근 정책을 우회하면 안 된다. 필요한 `.crew/` 내용은 오케스트레이터가 프롬프트에 인라인으로 주입한다.
 - Codex dev-log.md 작성: Codex stdout을 오케스트레이터가 파싱하여 dev-log.md를 생성한다.
+
+### AgentResult 공통 프로토콜
+
+Codex provider를 사용하는 모든 에이전트는 마지막에 아래 블록을 반드시 출력한다. 오케스트레이터는 `--expect-crew-result` payload의 `crewAgentResult`를 파싱하여 상태별 후속 액션을 수행한다.
+
+```json
+<crew-agent-result>
+{
+  "status": "complete",
+  "artifact": "에이전트 최종 결과 또는 산출물",
+  "questions": [],
+  "requests": [],
+  "summary": "짧은 요약",
+  "error": null
+}
+</crew-agent-result>
+```
+
+허용 상태:
+- `complete`: `artifact`를 저장하거나 다음 단계로 전달한다.
+- `blocked_on_user`: `questions`를 `AskUserQuestion`으로 질문한 뒤 같은 에이전트를 `--resume-last`로 이어간다.
+- `needs_agent`: `requests`의 `role`/`prompt`를 `runAgent`로 실행한 뒤 결과를 같은 에이전트에 주입한다.
+- `needs_tool`: 오케스트레이터가 허용된 Claude Code 도구를 실행한 뒤 결과를 같은 에이전트에 주입한다.
+- `failed`: crash/retry/fallback/escalation 정책을 적용한다.
+
+루프 상한:
+- 한 에이전트 실행당 AgentResult 후속 루프는 최대 5회.
+- 유저 질문은 한 에이전트 실행당 최대 3회.
+- `needs_agent` 요청은 한 에이전트 실행당 최대 5개.
 
 ---
 
@@ -113,13 +143,13 @@ Bash("node \"${CLAUDE_PLUGIN_ROOT}/scripts/crew-codex-companion.mjs\" task --wri
 
 **1a. Provider 설정 로드**
 
-1. `data/provider-catalog.json`을 읽어 `agent_defaults`를 로드한다.
+1. `data/provider-catalog.json`을 읽어 `agent_defaults`와 `agent_runtime`을 로드한다.
 2. `~/.claude/crew/config.json`이 있으면 `providers` 필드를 읽어 `agent_defaults`를 오버라이드한다 (유저 레벨).
 3. `{projectRoot}/.crew/config.json`이 있으면 `providers` 필드를 읽어 다시 오버라이드한다 (프로젝트 레벨, 최우선).
 4. codex provider가 하나라도 설정되어 있으면 `which codex`로 가용성을 확인한다.
    - codex가 없으면 경고를 출력하고 해당 에이전트를 Claude provider의 에이전트 frontmatter 모델로 폴백한다.
 
-해석된 설정을 Phase 2, 3에서 ��용한다.
+해석된 provider/model 설정과 role별 runtime 정책을 Phase 2, 3에서 사용한다.
 
 **1b. contract.md 유효성 검사**
 
@@ -296,7 +326,7 @@ US-{k}에 해당하는 피드백만 수정한다. 다른 US의 코드를 변경�
 오케스트레이터가 plan.md에서 US-{k} 섹션과 contract.md의 수용 기준을 추출하여 프롬프트에 인라인으로 주입한다.
 
 ```bash
-node "${CLAUDE_PLUGIN_ROOT}/scripts/crew-codex-companion.mjs" task --write --model {model} --effort "{reasoning}" --prompt-file "{promptFile}"
+node "${CLAUDE_PLUGIN_ROOT}/scripts/crew-codex-companion.mjs" task --write --expect-crew-result --model {model} --effort "{reasoning}" --prompt-file "{promptFile}"
 ```
 
 `{promptFile}` 내용:
@@ -325,10 +355,18 @@ node "${CLAUDE_PLUGIN_ROOT}/scripts/crew-codex-companion.mjs" task --write --mod
 - 기존 코드베이스의 컨벤션을 따른다.
 
 ## 완료 시 출력
-구현 요약을 출력하라:
-- 변경한 파일 목록
-- US-{k} 구현 내용 1줄 요약
-- 자체 검증 결과 (각 항목별 PASS/FAIL + 명령어 + 출력)
+구현 요약을 출력하고, 마지막에 `<crew-agent-result>` 블록을 포함하라:
+
+<crew-agent-result>
+{
+  "status": "complete",
+  "artifact": "변경한 파일 목록, US-{k} 구현 요약, 자체 검증 결과",
+  "questions": [],
+  "requests": [],
+  "summary": "US-{k} 구현 완료",
+  "error": null
+}
+</crew-agent-result>
 ```
 
 Codex stdout을 캡처하여 dev-log.md의 US-{k} 섹션으로 추가한다.
@@ -485,6 +523,14 @@ contract.md, brief.md, spec.md는 읽지 않는다.
 ```
 
 **병렬 실행 방법**: Phase 3과 동일 (provider 조합에 따라 Agent/Bash 병렬 호출).
+
+Codex provider인 CodeReviewer/QA는 read-only로 실행한다. `--write`를 붙이지 않는다.
+
+```bash
+node "${CLAUDE_PLUGIN_ROOT}/scripts/crew-codex-companion.mjs" task --expect-crew-result --model {model} --effort "{reasoning}" --prompt-file "{promptFile}"
+```
+
+CodeReviewer/QA Codex 프롬프트도 마지막에 `<crew-agent-result>` 블록을 포함해야 한다. 검토/검증 결과는 `artifact`에 넣고, 판정이 불가능하면 `failed` 또는 `needs_tool`을 반환한다.
 
 **결과 저장 (오케스트레이터 직접)**:
 - CodeReviewer 결과 → `.crew/plans/{task-id}/review-report.md`
@@ -679,7 +725,7 @@ CodeReviewer와 QA 에이전트는 read-only이므로 파일을 직접 작성하
 오케스트레이터는 CodeReviewer와 QA를 **동시에** 호출한다. provider 조합에 따라:
 
 - 둘 다 claude → Agent tool 2개를 한 번에 호출
-- 둘 다 codex → Bash tool 2개를 한 번에 호출
+- 둘 다 codex → read-only Bash tool 2개를 한 번에 호출 (`--write` 금지)
 - 혼합 → Agent + Bash를 한 번에 호출
 
 ---

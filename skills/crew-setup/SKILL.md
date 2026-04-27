@@ -141,6 +141,12 @@ git rev-parse --show-toplevel
 
 `data/provider-catalog.json`을 읽어 사용 가능한 provider와 model 목록을 로드한다.
 
+카탈로그의 역할:
+- `claude.models`: 선택 가능한 Claude 모델 ID
+- `codex.models`: 선택 가능한 Codex 모델/reasoning 조합
+- `agent_defaults`: 에이전트별 기본 provider/model
+- `agent_runtime`: 에이전트별 Codex sandbox 정책 (`dev`만 `workspace-write`, 나머지는 `read-only`)
+
 ### 3c. Codex CLI 가용성 확인
 
 ```bash
@@ -230,6 +236,7 @@ codex가 설치되어 있지 않으면 codex 항목은 제외한다.
 
 - claude provider일 때: `reasoning` 필드 생략
 - codex provider일 때: 카탈로그의 `reasoning` 값 포함 (`null`이면 생략)
+- `agent_runtime`은 유저 config에 저장하지 않는다. runtime 권한은 플러그인 카탈로그 정책을 따른다.
 
 ### 3h. 확인 메시지
 

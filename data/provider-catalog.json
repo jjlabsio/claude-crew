@@ -33,5 +33,16 @@
     "qa": { "provider": "claude", "model": "sonnet" },
     "dev": { "provider": "codex", "model": "gpt-5.5", "reasoning": "medium" },
     "code-reviewer": { "provider": "codex", "model": "gpt-5.5", "reasoning": "medium" }
+  },
+  "agent_runtime": {
+    "pm": { "codex_sandbox": "read-only" },
+    "techlead": { "codex_sandbox": "read-only" },
+    "planner": { "codex_sandbox": "read-only" },
+    "plan-evaluator": { "codex_sandbox": "read-only" },
+    "explorer": { "codex_sandbox": "read-only" },
+    "researcher": { "codex_sandbox": "read-only" },
+    "qa": { "codex_sandbox": "read-only" },
+    "dev": { "codex_sandbox": "workspace-write" },
+    "code-reviewer": { "codex_sandbox": "read-only" }
   }
 }

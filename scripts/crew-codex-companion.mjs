@@ -71,12 +71,13 @@ const DEFAULT_STATUS_POLL_INTERVAL_MS = 2000;
 const VALID_REASONING_EFFORTS = new Set(["none", "minimal", "low", "medium", "high", "xhigh"]);
 const MODEL_ALIASES = new Map([["spark", "gpt-5.3-codex-spark"]]);
 const STOP_REVIEW_TASK_MARKER = "Run a stop-gate review of the previous Claude turn.";
+const CREW_AGENT_RESULT_PATTERN = /<crew-agent-result>\s*([\s\S]*?)\s*<\/crew-agent-result>/;
 
 function printUsage() {
   console.log(
     [
       "Usage:",
-      "  node scripts/crew-codex-companion.mjs task [--background] [--write] [--resume-last|--resume|--fresh] [--model <model|spark>] [--effort <none|minimal|low|medium|high|xhigh>] [prompt]",
+      "  node scripts/crew-codex-companion.mjs task [--background] [--write] [--expect-crew-result] [--resume-last|--resume|--fresh] [--model <model|spark>] [--effort <none|minimal|low|medium|high|xhigh>] [prompt]",
       "  node scripts/crew-codex-companion.mjs status [job-id] [--all] [--json]",
       "  node scripts/crew-codex-companion.mjs result [job-id] [--json]",
       "  node scripts/crew-codex-companion.mjs cancel [job-id] [--json]"
@@ -173,6 +174,28 @@ function firstMeaningfulLine(text, fallback) {
     .map((value) => value.trim())
     .find(Boolean);
   return line ?? fallback;
+}
+
+function parseCrewAgentResult(rawOutput, required = false) {
+  const match = CREW_AGENT_RESULT_PATTERN.exec(String(rawOutput ?? ""));
+  if (!match) {
+    return {
+      result: null,
+      error: required ? "Missing <crew-agent-result> block." : null
+    };
+  }
+
+  try {
+    return {
+      result: JSON.parse(match[1]),
+      error: null
+    };
+  } catch (error) {
+    return {
+      result: null,
+      error: `Invalid <crew-agent-result> JSON: ${error instanceof Error ? error.message : String(error)}`
+    };
+  }
 }
 
 async function buildSetupReport(cwd, actionsTaken = []) {
@@ -511,9 +534,17 @@ async function executeTaskRun(request) {
     touchedFiles: result.touchedFiles,
     reasoningSummary: result.reasoningSummary
   };
+  if (request.expectCrewResult) {
+    const parsedCrewResult = parseCrewAgentResult(rawOutput, true);
+    payload.crewAgentResult = parsedCrewResult.result;
+    payload.crewAgentResultError = parsedCrewResult.error;
+    if (parsedCrewResult.error && result.status === 0) {
+      payload.status = 1;
+    }
+  }
 
   return {
-    exitStatus: result.status,
+    exitStatus: payload.status,
     threadId: result.threadId,
     turnId: result.turnId,
     payload,
@@ -597,7 +628,7 @@ function buildTaskJob(workspaceRoot, taskMetadata, write) {
   });
 }
 
-function buildTaskRequest({ cwd, model, effort, prompt, write, resumeLast, jobId }) {
+function buildTaskRequest({ cwd, model, effort, prompt, write, resumeLast, expectCrewResult, jobId }) {
   return {
     cwd,
     model,
@@ -605,6 +636,7 @@ function buildTaskRequest({ cwd, model, effort, prompt, write, resumeLast, jobId
     prompt,
     write,
     resumeLast,
+    expectCrewResult,
     jobId
   };
 }
@@ -731,7 +763,7 @@ async function handleReview(argv) {
 async function handleTask(argv) {
   const { options, positionals } = parseCommandInput(argv, {
     valueOptions: ["model", "effort", "cwd", "prompt-file"],
-    booleanOptions: ["json", "write", "resume-last", "resume", "fresh", "background"],
+    booleanOptions: ["json", "write", "expect-crew-result", "resume-last", "resume", "fresh", "background"],
     aliasMap: {
       m: "model"
     }
@@ -749,6 +781,7 @@ async function handleTask(argv) {
     throw new Error("Choose either --resume/--resume-last or --fresh.");
   }
   const write = Boolean(options.write);
+  const expectCrewResult = Boolean(options["expect-crew-result"]);
   const taskMetadata = buildTaskRunMetadata({
     prompt,
     resumeLast
@@ -766,6 +799,7 @@ async function handleTask(argv) {
       prompt,
       write,
       resumeLast,
+      expectCrewResult,
       jobId: job.id
     });
     const { payload } = enqueueBackgroundTask(cwd, job, request);
@@ -784,6 +818,7 @@ async function handleTask(argv) {
         prompt,
         write,
         resumeLast,
+        expectCrewResult,
         jobId: job.id,
         onProgress: progress
       }),
