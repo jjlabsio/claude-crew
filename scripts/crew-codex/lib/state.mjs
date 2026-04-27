@@ -15,6 +15,7 @@ const JOBS_DIR_NAME = "jobs";
 const LOCK_DIR_NAME = ".lock";
 const LOCK_WAIT_TIMEOUT_MS = 10000;
 const LOCK_POLL_INTERVAL_MS = 50;
+const LOCK_STALE_AFTER_MS = 60000;
 const MAX_JOBS = 50;
 
 function nowIso() {
@@ -80,6 +81,62 @@ function writeLockOwner(lockDir) {
   );
 }
 
+function readLockOwner(lockDir) {
+  try {
+    return JSON.parse(fs.readFileSync(path.join(lockDir, "owner.json"), "utf8"));
+  } catch {
+    return null;
+  }
+}
+
+function isProcessAlive(pid) {
+  if (!Number.isInteger(pid) || pid <= 0) {
+    return false;
+  }
+  try {
+    process.kill(pid, 0);
+    return true;
+  } catch (error) {
+    return error?.code === "EPERM";
+  }
+}
+
+function getLockAgeMs(lockDir, owner) {
+  const createdAt = Date.parse(owner?.createdAt ?? "");
+  if (Number.isFinite(createdAt)) {
+    return Date.now() - createdAt;
+  }
+  try {
+    return Date.now() - fs.statSync(lockDir).mtimeMs;
+  } catch {
+    return 0;
+  }
+}
+
+function removeStaleLock(lockDir, owner) {
+  try {
+    fs.rmSync(lockDir, { recursive: true, force: true });
+  } catch (error) {
+    throw new Error(
+      `Failed to remove stale Codex companion state lock held by pid ${owner?.pid ?? "unknown"}: ${
+        error instanceof Error ? error.message : String(error)
+      }`
+    );
+  }
+}
+
+function maybeRemoveStaleLock(lockDir, options = {}) {
+  const staleAfterMs = options.staleAfterMs ?? LOCK_STALE_AFTER_MS;
+  const owner = readLockOwner(lockDir);
+  const ageMs = getLockAgeMs(lockDir, owner);
+  const ownerAlive = isProcessAlive(owner?.pid);
+  if (!ownerAlive || ageMs >= staleAfterMs) {
+    removeStaleLock(lockDir, owner);
+    return true;
+  }
+  return false;
+}
+
 function acquireStateLock(cwd, options = {}) {
   const timeoutMs = options.timeoutMs ?? LOCK_WAIT_TIMEOUT_MS;
   const pollIntervalMs = options.pollIntervalMs ?? LOCK_POLL_INTERVAL_MS;
@@ -99,6 +156,9 @@ function acquireStateLock(cwd, options = {}) {
       }
       if (Date.now() - startedAt >= timeoutMs) {
         throw new Error(`Timed out waiting for Codex companion state lock: ${lockDir}`);
+      }
+      if (maybeRemoveStaleLock(lockDir, options)) {
+        continue;
       }
       sleepSync(pollIntervalMs);
     }
@@ -124,6 +184,9 @@ async function acquireStateLockAsync(cwd, options = {}) {
       }
       if (Date.now() - startedAt >= timeoutMs) {
         throw new Error(`Timed out waiting for Codex companion state lock: ${lockDir}`);
+      }
+      if (maybeRemoveStaleLock(lockDir, options)) {
+        continue;
       }
       await sleep(pollIntervalMs);
     }
