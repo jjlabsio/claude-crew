@@ -12,6 +12,9 @@ const PLUGIN_DATA_ENV = "CLAUDE_PLUGIN_DATA";
 const FALLBACK_STATE_ROOT_DIR = path.join(os.tmpdir(), "crew-codex-companion");
 const STATE_FILE_NAME = "state.json";
 const JOBS_DIR_NAME = "jobs";
+const LOCK_DIR_NAME = ".lock";
+const LOCK_WAIT_TIMEOUT_MS = 10000;
+const LOCK_POLL_INTERVAL_MS = 50;
 const MAX_JOBS = 50;
 
 function nowIso() {
@@ -57,6 +60,102 @@ export function ensureStateDir(cwd) {
   fs.mkdirSync(resolveJobsDir(cwd), { recursive: true });
 }
 
+function sleepSync(ms) {
+  Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms);
+}
+
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function resolveLockDir(cwd) {
+  return path.join(resolveStateDir(cwd), LOCK_DIR_NAME);
+}
+
+function writeLockOwner(lockDir) {
+  fs.writeFileSync(
+    path.join(lockDir, "owner.json"),
+    `${JSON.stringify({ pid: process.pid, createdAt: nowIso() }, null, 2)}\n`,
+    "utf8"
+  );
+}
+
+function acquireStateLock(cwd, options = {}) {
+  const timeoutMs = options.timeoutMs ?? LOCK_WAIT_TIMEOUT_MS;
+  const pollIntervalMs = options.pollIntervalMs ?? LOCK_POLL_INTERVAL_MS;
+  const stateDir = resolveStateDir(cwd);
+  const lockDir = resolveLockDir(cwd);
+  const startedAt = Date.now();
+  fs.mkdirSync(stateDir, { recursive: true });
+
+  while (true) {
+    try {
+      fs.mkdirSync(lockDir);
+      writeLockOwner(lockDir);
+      return lockDir;
+    } catch (error) {
+      if (error?.code !== "EEXIST") {
+        throw error;
+      }
+      if (Date.now() - startedAt >= timeoutMs) {
+        throw new Error(`Timed out waiting for Codex companion state lock: ${lockDir}`);
+      }
+      sleepSync(pollIntervalMs);
+    }
+  }
+}
+
+async function acquireStateLockAsync(cwd, options = {}) {
+  const timeoutMs = options.timeoutMs ?? LOCK_WAIT_TIMEOUT_MS;
+  const pollIntervalMs = options.pollIntervalMs ?? LOCK_POLL_INTERVAL_MS;
+  const stateDir = resolveStateDir(cwd);
+  const lockDir = resolveLockDir(cwd);
+  const startedAt = Date.now();
+  fs.mkdirSync(stateDir, { recursive: true });
+
+  while (true) {
+    try {
+      fs.mkdirSync(lockDir);
+      writeLockOwner(lockDir);
+      return lockDir;
+    } catch (error) {
+      if (error?.code !== "EEXIST") {
+        throw error;
+      }
+      if (Date.now() - startedAt >= timeoutMs) {
+        throw new Error(`Timed out waiting for Codex companion state lock: ${lockDir}`);
+      }
+      await sleep(pollIntervalMs);
+    }
+  }
+}
+
+function releaseStateLock(lockDir) {
+  try {
+    fs.rmSync(lockDir, { recursive: true, force: true });
+  } catch {
+    // Lock release is best-effort; callers should not fail after their write completed.
+  }
+}
+
+export function withStateLock(cwd, callback, options = {}) {
+  const lockDir = acquireStateLock(cwd, options);
+  try {
+    return callback();
+  } finally {
+    releaseStateLock(lockDir);
+  }
+}
+
+export async function withStateLockAsync(cwd, callback, options = {}) {
+  const lockDir = await acquireStateLockAsync(cwd, options);
+  try {
+    return await callback();
+  } finally {
+    releaseStateLock(lockDir);
+  }
+}
+
 export function loadState(cwd) {
   const stateFile = resolveStateFile(cwd);
   if (!fs.existsSync(stateFile)) {
@@ -91,7 +190,17 @@ function removeFileIfExists(filePath) {
   }
 }
 
-export function saveState(cwd, state) {
+export function writeJsonFileAtomic(filePath, payload) {
+  fs.mkdirSync(path.dirname(filePath), { recursive: true });
+  const tempPath = path.join(
+    path.dirname(filePath),
+    `.${path.basename(filePath)}.${process.pid}.${Date.now()}.${Math.random().toString(36).slice(2)}.tmp`
+  );
+  fs.writeFileSync(tempPath, `${JSON.stringify(payload, null, 2)}\n`, "utf8");
+  fs.renameSync(tempPath, filePath);
+}
+
+function saveStateUnlocked(cwd, state) {
   const previousJobs = loadState(cwd).jobs;
   ensureStateDir(cwd);
   const nextJobs = pruneJobs(state.jobs ?? []);
@@ -113,14 +222,20 @@ export function saveState(cwd, state) {
     removeFileIfExists(job.logFile);
   }
 
-  fs.writeFileSync(resolveStateFile(cwd), `${JSON.stringify(nextState, null, 2)}\n`, "utf8");
+  writeJsonFileAtomic(resolveStateFile(cwd), nextState);
   return nextState;
 }
 
+export function saveState(cwd, state) {
+  return withStateLock(cwd, () => saveStateUnlocked(cwd, state));
+}
+
 export function updateState(cwd, mutate) {
-  const state = loadState(cwd);
-  mutate(state);
-  return saveState(cwd, state);
+  return withStateLock(cwd, () => {
+    const state = loadState(cwd);
+    mutate(state);
+    return saveStateUnlocked(cwd, state);
+  });
 }
 
 export function generateJobId(prefix = "job") {
@@ -168,7 +283,7 @@ export function getConfig(cwd) {
 export function writeJobFile(cwd, jobId, payload) {
   ensureStateDir(cwd);
   const jobFile = resolveJobFile(cwd, jobId);
-  fs.writeFileSync(jobFile, `${JSON.stringify(payload, null, 2)}\n`, "utf8");
+  writeJsonFileAtomic(jobFile, payload);
   return jobFile;
 }
 
