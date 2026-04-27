@@ -1,6 +1,18 @@
 # Changelog
 
 
+## v0.1.32
+
+[compare changes](https://github.com/jjlabsio/claude-crew/compare/v0.1.31...v0.1.32)
+
+### 🚀 Enhancements
+
+- Embed Codex app-server runtime ([#26](https://github.com/jjlabsio/claude-crew/pull/26))
+
+### ❤️ Contributors
+
+- Jaejin Song ([@jjlabsio](https://github.com/jjlabsio))
+
 ## v0.1.31
 
 [compare changes](https://github.com/jjlabsio/claude-crew/compare/v0.1.30...v0.1.31)
