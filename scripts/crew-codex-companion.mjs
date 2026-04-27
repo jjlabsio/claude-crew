@@ -22,6 +22,7 @@ import { terminateProcessTree } from "./crew-codex/lib/process.mjs";
 import {
   generateJobId,
   listJobs,
+  updateState,
   upsertJob,
   writeJobFile
 } from "./crew-codex/lib/state.mjs";
@@ -507,6 +508,24 @@ function spawnDetachedTaskWorker(cwd, jobId) {
   return child;
 }
 
+function attachQueuedWorkerPid(workspaceRoot, jobId, pid) {
+  if (!Number.isFinite(pid)) {
+    return;
+  }
+
+  updateState(workspaceRoot, (state) => {
+    const existingIndex = state.jobs.findIndex((candidate) => candidate.id === jobId);
+    if (existingIndex === -1 || state.jobs[existingIndex].status !== "queued") {
+      return;
+    }
+
+    state.jobs[existingIndex] = {
+      ...state.jobs[existingIndex],
+      pid
+    };
+  });
+}
+
 function enqueueBackgroundTask(cwd, job, request) {
   const { logFile } = createTrackedProgress(job);
   appendLogLine(logFile, "Queued for background execution.");
@@ -522,7 +541,8 @@ function enqueueBackgroundTask(cwd, job, request) {
   writeJobFile(job.workspaceRoot, job.id, queuedRecord);
   upsertJob(job.workspaceRoot, queuedRecord);
 
-  spawnDetachedTaskWorker(cwd, job.id);
+  const child = spawnDetachedTaskWorker(cwd, job.id);
+  attachQueuedWorkerPid(job.workspaceRoot, job.id, child.pid ?? null);
 
   return {
     payload: {
