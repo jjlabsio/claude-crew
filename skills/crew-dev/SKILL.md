@@ -43,15 +43,16 @@ Agent(subagent_type="{role}", model="{model}", description="...", prompt="...")
 
 **codex provider:**
 ```
-Bash("codex exec --model {model} -c model_reasoning_effort=\"{reasoning}\" --dangerously-bypass-approvals-and-sandbox \"{prompt}\" < /dev/null")
+Bash("node \"${CLAUDE_PLUGIN_ROOT}/scripts/crew-codex-companion.mjs\" task --write --model {model} --effort {reasoning} --prompt-file {promptFile}")
 ```
-- 프롬프트가 길면 임시 파일에 저장 후 `cat`으로 전달한다.
+- 프롬프트는 임시 파일에 저장하고 `--prompt-file`로 전달한다.
 - Codex는 CWD 기준으로 작업하므로 워크트리 안에서 실행한다.
-- Codex의 stdout에서 결과를 캡처한다.
+- Codex app-server thread id와 stdout에서 결과를 캡처한다.
+- 같은 Codex 작업을 이어갈 때는 `--resume-last`를 사용한다.
 
 **codex provider 제약:**
 - Codex는 Claude Code의 Read/Edit/Glob 도구가 아닌 자체 도구를 사용한다.
-- Codex 에이전트는 `.crew/` 파일에 직접 접근할 수 없으므로, 프롬프트에 필요한 내용을 인라인으로 주입해야 한다.
+- Codex 에이전트는 `.crew/` 접근 정책을 우회하면 안 된다. 필요한 `.crew/` 내용은 오케스트레이터가 프롬프트에 인라인으로 주입한다.
 - Codex dev-log.md 작성: Codex stdout을 오케스트레이터가 파싱하여 dev-log.md를 생성한다.
 
 ---
@@ -116,7 +117,7 @@ Bash("codex exec --model {model} -c model_reasoning_effort=\"{reasoning}\" --dan
 2. `~/.claude/crew/config.json`이 있으면 `providers` 필드를 읽어 `agent_defaults`를 오버라이드한다 (유저 레벨).
 3. `{projectRoot}/.crew/config.json`이 있으면 `providers` 필드를 읽어 다시 오버라이드한다 (프로젝트 레벨, 최우선).
 4. codex provider가 하나라도 설정되어 있으면 `which codex`로 가용성을 확인한다.
-   - codex가 없으면 경고를 출력하고 해당 에이전트를 기본값(claude)으로 폴백한다.
+   - codex가 없으면 경고를 출력하고 해당 에이전트를 Claude provider의 에이전트 frontmatter 모델로 폴백한다.
 
 해석된 설정을 Phase 2, 3에서 ��용한다.
 
@@ -295,7 +296,12 @@ US-{k}에 해당하는 피드백만 수정한다. 다른 US의 코드를 변경�
 오케스트레이터가 plan.md에서 US-{k} 섹션과 contract.md의 수용 기준을 추출하여 프롬프트에 인라인으로 주입한다.
 
 ```bash
-codex exec --model {model} -c model_reasoning_effort="{reasoning}" --dangerously-bypass-approvals-and-sandbox "$(cat <<'PROMPT'
+node "${CLAUDE_PLUGIN_ROOT}/scripts/crew-codex-companion.mjs" task --write --model {model} --effort "{reasoning}" --prompt-file "{promptFile}"
+```
+
+`{promptFile}` 내용:
+
+```markdown
 당신은 Dev 에이전트다. 아래 유저 스토리 US-{k}만 구현한다.
 
 ## US-{k} (plan.md에서 추출)
@@ -323,8 +329,6 @@ codex exec --model {model} -c model_reasoning_effort="{reasoning}" --dangerously
 - 변경한 파일 목록
 - US-{k} 구현 내용 1줄 요약
 - 자체 검증 결과 (각 항목별 PASS/FAIL + 명령어 + 출력)
-PROMPT
-)" < /dev/null
 ```
 
 Codex stdout을 캡처하여 dev-log.md의 US-{k} 섹션으로 추가한다.

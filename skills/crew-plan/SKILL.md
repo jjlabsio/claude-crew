@@ -58,7 +58,7 @@ spec.md가 없거나 비어 있습니다. crew-interview를 먼저 실행해야 
 
 ### Step 2 — TechLead 에이전트 실행
 
-**모델**: opus
+**provider/model**: 설정 resolver가 결정한다 (기본값: `agent_defaults.techlead`).
 
 호출:
 
@@ -152,7 +152,7 @@ TechLead의 analysis.md에서 테스트 인프라 섹션을 확인한 후, 오�
 
 ### Step 3 — Planner 에이전트 실행
 
-**모델**: opus
+**provider/model**: 설정 resolver가 결정한다 (기본값: `agent_defaults.planner`).
 
 호출:
 
@@ -258,7 +258,7 @@ plan.md 최상단에 "이전 피드백 반영" 섹션을 추가한다.
 
 ### Step 4 — PlanEvaluator 에이전트 실행
 
-**모델**: sonnet (하드 임계값 판정에서 Opus 합리화 방지)
+**provider/model**: 설정 resolver가 결정한다 (기본값: `agent_defaults.plan-evaluator`).
 
 호출:
 
@@ -486,14 +486,14 @@ Planner + PlanEvaluator 사이클은 최대 5회 (초기 1회 + retry 최대 4�
 
 ## 에이전트 호출 컨텍스트 규칙
 
-| 에이전트 | subagent_type | 모델 | 주입할 파일 | 차단할 파일 |
+| 에이전트 | subagent_type | 기본 provider/model | 주입할 파일 | 차단할 파일 |
 |----------|--------------|------|------------|------------|
-| TechLead | techlead | opus | spec.md | — |
-| Planner (첫 번째) | planner | opus | spec.md + analysis.md | brief.md |
-| Planner (retry) | planner | opus | spec.md + analysis.md + review-{n}.md | brief.md |
-| PlanEvaluator | plan-evaluator | sonnet | spec.md + analysis.md + plan.md | brief.md |
+| TechLead | techlead | `agent_defaults.techlead` | spec.md | — |
+| Planner (첫 번째) | planner | `agent_defaults.planner` | spec.md + analysis.md | brief.md |
+| Planner (retry) | planner | `agent_defaults.planner` | spec.md + analysis.md + review-{n}.md | brief.md |
+| PlanEvaluator | plan-evaluator | `agent_defaults.plan-evaluator` | spec.md + analysis.md + plan.md | brief.md |
 
-**중요**: 모든 에이전트 호출 시 반드시 `subagent_type` 파라미터를 지정해야 한다. `subagent_type`이 없으면 PreToolUse hook이 호출을 차단한다. `model` 파라미터는 생략 가능 — hook이 에이전트 정의에서 자동 주입한다.
+**중요**: provider/model은 `.crew/config.json`, `~/.claude/crew/config.json`, `data/provider-catalog.json`의 `agent_defaults` 순서로 해석한다. Claude provider는 `Agent(subagent_type=..., model=...)`로 호출하고, Codex provider는 `scripts/crew-codex-companion.mjs task`로 호출한다.
 
 ---
 

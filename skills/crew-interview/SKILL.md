@@ -299,12 +299,12 @@ spec.md를 작성했습니다. 검토해주세요.
 
 ## 에이전트 호출 규칙
 
-| 에이전트 | subagent_type | 모델 | 용도 | 호출 시점 |
+| 에이전트 | subagent_type | 기본 provider/model | 용도 | 호출 시점 |
 |----------|--------------|------|------|----------|
-| Explorer | explorer | haiku | 코드베이스 탐색 (read-only) | Phase 1b (필수), Phase 2d (필요 시) |
-| Researcher | researcher | sonnet | 외부 조사 (WebSearch) | Phase 2 중 필요 시 |
+| Explorer | explorer | `agent_defaults.explorer` | 코드베이스 탐색 (read-only) | Phase 1b (필수), Phase 2d (필요 시) |
+| Researcher | researcher | `agent_defaults.researcher` | 외부 조사 (WebSearch) | Phase 2 중 필요 시 |
 
-**중요**: 모든 에이전트 호출 시 반드시 `subagent_type` 파라미터를 지정해야 한다. `subagent_type`이 없으면 PreToolUse hook이 호출을 차단한다. `model` 파라미터는 생략 가능 — hook이 에이전트 정의에서 자동 주입한다.
+**중요**: provider/model은 `.crew/config.json`, `~/.claude/crew/config.json`, `data/provider-catalog.json`의 `agent_defaults` 순서로 해석한다.
 
 ---
 
