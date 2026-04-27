@@ -72,6 +72,13 @@ const VALID_REASONING_EFFORTS = new Set(["none", "minimal", "low", "medium", "hi
 const MODEL_ALIASES = new Map([["spark", "gpt-5.3-codex-spark"]]);
 const STOP_REVIEW_TASK_MARKER = "Run a stop-gate review of the previous Claude turn.";
 const CREW_AGENT_RESULT_PATTERN = /<crew-agent-result>\s*([\s\S]*?)\s*<\/crew-agent-result>/;
+const CREW_AGENT_RESULT_STATUSES = new Set([
+  "complete",
+  "blocked_on_user",
+  "needs_agent",
+  "needs_tool",
+  "failed"
+]);
 
 function printUsage() {
   console.log(
@@ -176,6 +183,37 @@ function firstMeaningfulLine(text, fallback) {
   return line ?? fallback;
 }
 
+function validateCrewAgentResult(result) {
+  if (result == null || typeof result !== "object" || Array.isArray(result)) {
+    return "AgentResult must be a JSON object.";
+  }
+
+  if (!CREW_AGENT_RESULT_STATUSES.has(result.status)) {
+    return `AgentResult status must be one of: ${Array.from(CREW_AGENT_RESULT_STATUSES).join(", ")}.`;
+  }
+
+  if ("questions" in result && !Array.isArray(result.questions)) {
+    return "AgentResult questions must be an array when provided.";
+  }
+
+  if ("requests" in result && !Array.isArray(result.requests)) {
+    return "AgentResult requests must be an array when provided.";
+  }
+
+  if (result.status === "blocked_on_user" && (!Array.isArray(result.questions) || result.questions.length === 0)) {
+    return "AgentResult blocked_on_user requires a non-empty questions array.";
+  }
+
+  if (
+    (result.status === "needs_agent" || result.status === "needs_tool") &&
+    (!Array.isArray(result.requests) || result.requests.length === 0)
+  ) {
+    return `AgentResult ${result.status} requires a non-empty requests array.`;
+  }
+
+  return null;
+}
+
 function parseCrewAgentResult(rawOutput, required = false) {
   const match = CREW_AGENT_RESULT_PATTERN.exec(String(rawOutput ?? ""));
   if (!match) {
@@ -186,8 +224,17 @@ function parseCrewAgentResult(rawOutput, required = false) {
   }
 
   try {
+    const result = JSON.parse(match[1]);
+    const validationError = validateCrewAgentResult(result);
+    if (validationError) {
+      return {
+        result,
+        error: validationError
+      };
+    }
+
     return {
-      result: JSON.parse(match[1]),
+      result,
       error: null
     };
   } catch (error) {
