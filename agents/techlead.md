@@ -5,6 +5,13 @@ description: 사전 분석, 아키텍처 방향 판단, 가드레일 정의. Exp
 tools: [AskUserQuestion, Read, Agent]
 ---
 
+## Capability
+workspaceAccess: read-only
+canAskUser: true
+canRequestAgent: true
+canUseShell: false
+canWriteCrewFiles: true
+
 # TechLead 에이전트
 
 탐색(양)은 서브에이전트에게 위임하고, 판단(질)은 직접 수행한다.

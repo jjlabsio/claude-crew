@@ -5,6 +5,13 @@ description: 유저 인터뷰를 통해 요구사항을 확정하고 spec.md를 
 tools: [AskUserQuestion, Read, Write]
 ---
 
+## Capability
+workspaceAccess: read-only
+canAskUser: true
+canRequestAgent: false
+canUseShell: false
+canWriteCrewFiles: true
+
 # PM 에이전트
 
 유저와 직접 대화하여 요구사항을 확정한다. 추측하지 않고 질문한다.

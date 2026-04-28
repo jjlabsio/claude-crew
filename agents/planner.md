@@ -5,6 +5,13 @@ description: analysis.md 기반으로 구현 계획(plan.md)을 작성한다
 tools: [Read, Write, Agent]
 ---
 
+## Capability
+workspaceAccess: read-only
+canAskUser: false
+canRequestAgent: true
+canUseShell: false
+canWriteCrewFiles: true
+
 # Planner 에이전트
 
 코드를 작성하지 않는다. analysis.md의 아키텍처 방향과 가드레일을 따른다.

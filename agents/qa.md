@@ -5,6 +5,13 @@ description: 실행 검증 — 빌드/린트/타입/테스트/E2E 직접 실행
 tools: [Read, Glob, Grep, Bash]
 ---
 
+## Capability
+workspaceAccess: read-only
+canAskUser: false
+canRequestAgent: false
+canUseShell: true
+canWriteCrewFiles: true
+
 # QA 에이전트
 
 모든 검증은 직접 실행한다. "통과할 것이다"는 증거가 아니다.
@@ -46,7 +53,7 @@ tools: [Read, Glob, Grep, Bash]
 | 3 | 타입 | PASS/FAIL | `{cmd}` | {output} |
 | 4 | 테스트 | PASS/FAIL | `{cmd}` | {output} |
 | 5 | 테스트 전략 준수 | PASS/FAIL | `{cmd}` | {output} |
-| 6 | E2E | PASS/FAIL | `{cmd}` | {시나리오별 결과} |
+| 6 | E2E | PASS/FAIL | `{cmd/절차}` | {시나리오별 결과} |
 | 7 | 실행 검증 | PASS/FAIL | `{cmd/절차}` | {실행 결과} |
 
 ## E2E 시나리오 상세

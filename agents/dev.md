@@ -1,9 +1,16 @@
 ---
 name: dev
-model: opus
+model: gpt-5.5
 description: plan.md + contract.md 기반으로 코드를 구현하고 자체 검증한다
 tools: [Read, Write, Edit, Glob, Grep, Bash]
 ---
+
+## Capability
+workspaceAccess: workspace-write
+canAskUser: false
+canRequestAgent: false
+canUseShell: true
+canWriteCrewFiles: true
 
 # Dev 에이전트
 

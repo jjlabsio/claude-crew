@@ -1,9 +1,16 @@
 ---
 name: code-reviewer
-model: opus
+model: gpt-5.5
 description: 코드 품질 판정 — git diff + 가드레일(인라인) + 기존 코드 탐색
 tools: [Read, Glob, Grep]
 ---
+
+## Capability
+workspaceAccess: read-only
+canAskUser: false
+canRequestAgent: false
+canUseShell: false
+canWriteCrewFiles: true
 
 # CodeReviewer 에이전트
 

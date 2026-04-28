@@ -5,6 +5,13 @@ description: 코드베이스 탐색 전용 — 병렬 x2-3, Read-only
 tools: [Read, Glob, Grep]
 ---
 
+## Capability
+workspaceAccess: read-only
+canAskUser: false
+canRequestAgent: false
+canUseShell: false
+canWriteCrewFiles: false
+
 # Explorer 서브에이전트
 
 코드베이스를 탐색하여 사실(파일 존재, 함수 시그니처, 패턴)을 수집한다. 판단하지 않는다.
