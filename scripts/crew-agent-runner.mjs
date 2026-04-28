@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 import { readFileSync } from "node:fs";
 
+import { build } from "./lib/build.mjs";
 import { loadContracts } from "./lib/contracts.mjs";
 import {
   loadCatalog,
@@ -34,6 +35,10 @@ async function main(argv) {
     return renderFollowupCommand(flags);
   }
 
+  if (command === "build") {
+    return buildCommand(flags);
+  }
+
   if (command !== "resolve") {
     usage();
     return 2;
@@ -58,6 +63,24 @@ async function main(argv) {
     } else {
       process.stdout.write(formatTable(value));
     }
+    return 0;
+  } catch (error) {
+    console.error(error.message);
+    return 1;
+  }
+}
+
+async function buildCommand(flags) {
+  if (
+    flags.root !== undefined &&
+    (typeof flags.root !== "string" || flags.root.length === 0)
+  ) {
+    console.error("Missing value for --root <path>");
+    return 1;
+  }
+
+  try {
+    await build({ root: flags.root ?? process.cwd() });
     return 0;
   } catch (error) {
     console.error(error.message);
@@ -219,6 +242,7 @@ function writeDispatchResult(agentResult, flags) {
 
 function usage() {
   console.error("Usage: crew-agent-runner resolve --role <name> [--json]");
+  console.error("       crew-agent-runner build [--root <path>]");
   console.error("       crew-agent-runner render --role <name> --request-file <path>");
   console.error(
     "       crew-agent-runner render-followup --previous-result <file> --new-input <file>"
