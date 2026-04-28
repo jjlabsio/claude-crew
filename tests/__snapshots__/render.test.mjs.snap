@@ -1,0 +1,37 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`renderPrompt > renders a planner prompt with capability, inputs, instructions and success gate 1`] = `
+"# Planner
+
+## Capability
+workspaceAccess: read-only
+canAskUser: false
+canRequestAgent: true
+canUseShell: false
+canWriteCrewFiles: true
+
+## Inputs
+### .crew/plans/task-123/spec.md
+# Spec
+Build the runner render command.
+### .crew/plans/task-123/analysis.md
+# Analysis
+Keep provider dispatch out of rendering.
+### Denied Inputs
+- .crew/plans/{task-id}/brief.md
+
+## Outputs
+[
+  {
+    "type": "artifact",
+    "target": ".crew/plans/{task-id}/plan.md"
+  }
+]
+
+## Instructions
+Create a concrete implementation plan from the provided spec and analysis.
+
+## Success Gate
+The plan is actionable and names the files to change.
+"
+`;
