@@ -139,15 +139,35 @@ git rev-parse --show-toplevel
 
 ### 3b. 카탈로그 로드
 
-`data/provider-catalog.json`을 읽어 사용 가능한 provider와 model 목록을 로드한다.
+`data/agent-contracts.json`과 `data/provider-catalog.json`을 읽어 role, provider, model 목록을 로드한다.
 
-카탈로그의 역할:
+파일별 역할:
+- `data/agent-contracts.json`: role 목록과 순서의 단일 source
+- `data/provider-catalog.json`: provider/model 선택지와 기본값
+
+provider 카탈로그의 역할:
 - `claude.models`: 선택 가능한 Claude 모델 ID
 - `codex.models`: 선택 가능한 Codex 모델/reasoning 조합
 - `agent_defaults`: 에이전트별 기본 provider/model
 - `agent_runtime`: 에이전트별 Codex sandbox 정책 (`dev`만 `workspace-write`, 나머지는 `read-only`)
 
-### 3c. Codex CLI 가용성 확인
+### 3c. Role 목록
+
+role 목록의 source는 `data/agent-contracts.json`이다. 아래 표는 현재 contract 순서를 반영한 provider 설정 대상 목록이며, role 추가/삭제/순서 변경은 이 파일을 기준으로 갱신한다.
+
+| role | provider 설정 대상 |
+|---|---|
+| `pm` | yes |
+| `techlead` | yes |
+| `planner` | yes |
+| `plan-evaluator` | yes |
+| `explorer` | yes |
+| `researcher` | yes |
+| `dev` | yes |
+| `code-reviewer` | yes |
+| `qa` | yes |
+
+### 3d. Codex CLI 가용성 확인
 
 ```bash
 which codex
@@ -156,36 +176,29 @@ which codex
 - codex가 없으면: "Codex CLI가 설치되어 있지 않습니다. Codex provider 선택지는 표시하지 않습니다." 안내 후 Claude 모델만 설정한다.
 - codex가 있으면: 계속 진행한다.
 
-### 3d. 기존 설정 표시
+### 3e. 기존 설정 표시
 
-Step 3a에서 판별된 config 경로의 파일이 있으면 현재 설정을 표시한다. 없으면 기본값을 표시한다.
+Step 3a에서 판별된 config 경로의 파일이 있으면 현재 설정을 표시한다. 없으면 기본값을 표시한다. 표시 순서는 `data/agent-contracts.json`의 role 순서를 따른다.
 
 ```
 현재 에이전트 설정:
-  - pm: claude / opus (기본값)
-  - techlead: claude / opus (기본값)
-  - planner: claude / opus (기본값)
-  - plan-evaluator: claude / sonnet (기본값)
-  - explorer: claude / haiku (기본값)
-  - researcher: claude / sonnet (기본값)
-  - dev: codex / gpt-5.5 medium (기본값)
-  - code-reviewer: codex / gpt-5.5 medium (기본값)
-  - qa: claude / sonnet (기본값)
+  - <role>: <provider> / <model> <reasoning> (기본값 또는 사용자 설정)
+  ...
 ```
 
-### 3e. 설정할 에이전트 선택
+### 3f. 설정할 에이전트 선택
 
 사용자에게 설정을 변경할 에이전트를 선택하게 한다.
 
 ```
 설정을 변경할 에이전트를 선택하세요 (쉼표 구분, 엔터 = 스킵):
-  pm, techlead, planner, plan-evaluator, explorer, researcher, dev, code-reviewer, qa
+  <data/agent-contracts.json의 role 목록을 contract 순서로 쉼표 구분 표시>
 ```
 
 - 사용자가 엔터만 누르거나 "없음"/"스킵"을 입력하면 Step 3를 종료한다.
 - 예시 입력: `planner`, `dev, code-reviewer`
 
-### 3f. 선택된 에이전트별 설정
+### 3g. 선택된 에이전트별 설정
 
 선택된 각 에이전트에 대해 순차적으로:
 
@@ -211,7 +224,7 @@ Model:
 
 codex가 설치되어 있지 않으면 codex 항목은 제외한다.
 
-### 3g. 설정 저장
+### 3h. 설정 저장
 
 선택 결과를 Step 3a에서 판별된 config 경로에 저장한다.
 
@@ -238,7 +251,7 @@ codex가 설치되어 있지 않으면 codex 항목은 제외한다.
 - codex provider일 때: 카탈로그의 `reasoning` 값 포함 (`null`이면 생략)
 - `agent_runtime`은 유저 config에 저장하지 않는다. runtime 권한은 플러그인 카탈로그 정책을 따른다.
 
-### 3h. 확인 메시지
+### 3i. 확인 메시지
 
 ```
 ✓ Provider 설정 완료:
