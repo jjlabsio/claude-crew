@@ -34,31 +34,28 @@ description: 유저 요구사항을 인터뷰하여 개발 가능한 수준의 s
 
 ## 실행 순서
 
-PM 판단/질문/spec 작성 단계, Explorer 호출, Researcher 호출은 모두 provider 설정 대상이다. 오케스트레이터는 **반드시 Phase 0에서 provider 설정을 먼저 해석한 뒤**, 각 단계의 디스패치를 분기한다. 본 문서의 `runAgent(role, ...)` 표기는 모두 의사코드이며, 실제로는 Phase 0의 해석 테이블과 메타 섹션의 분기 규칙대로 `Agent` 또는 `Bash(crew-codex-companion)`를 직접 호출한다.
+PM 판단/질문/spec 작성 단계, Explorer 호출, Researcher 호출은 모두 provider 설정 대상이다. 오케스트레이터는 **반드시 Phase 1a에서 provider 설정을 먼저 해석한 뒤**, 각 단계의 디스패치를 분기한다. 본 문서의 `runAgent(role, ...)` 표기는 모두 의사코드이며, 실제로는 Phase 1a의 해석 테이블과 메타 섹션의 분기 규칙대로 `Agent` 또는 `Bash(crew-codex-companion)`를 직접 호출한다.
 
 - PM이 Claude provider이면 오케스트레이터가 인터뷰 로직을 직접 수행하면서 `AskUserQuestion`, Read/Write를 사용한다.
 - PM이 Codex provider이면 인터뷰 로직 자체를 codex companion task로 위임한다. Codex는 직접 질문하거나 `.crew/` 파일을 쓰지 않는다. 질문이 필요하면 `blocked_on_user`, 추가 탐색이 필요하면 `needs_agent`, 최종 spec은 `complete.artifact`로 반환한다.
 - Codex PM의 `artifact`는 오케스트레이터가 `.crew/plans/{task-id}/spec.md`로 저장한다.
 
-### Phase 0 — Provider 설정 로드 (오케스트레이터 직접, 필수 선행 단계)
+### Phase 1 — 초기화 (자동)
 
-이 Phase를 건너뛰지 않는다. 어떤 단계든 에이전트 호출 직전에 Phase 0의 해석 테이블이 출력되어 있어야 한다.
+**1a. Provider 설정 로드**
 
-**0a. cascading 해석**:
+이 단계를 건너뛰지 않는다. 어떤 단계든 에이전트 호출 직전에 1a의 해석 테이블이 출력되어 있어야 한다.
+
+cascading 해석:
 
 1. `${CLAUDE_PLUGIN_ROOT}/data/provider-catalog.json`을 읽어 `agent_defaults`와 `agent_runtime`을 로드한다.
 2. `~/.claude/crew/config.json`이 있으면 `providers.{role}` 필드로 user-level 오버라이드를 적용한다.
 3. `{projectRoot}/.crew/config.json`이 있으면 `providers.{role}` 필드로 project-level 오버라이드를 다시 적용한다 (최우선).
 4. 본 스킬의 적용 대상 role은 `pm`, `explorer`, `researcher` 세 개다. 각 role의 `{provider, model, reasoning?, codex_sandbox}` 값을 결정한다.
 
-**0b. Codex 가용성 확인**:
+Codex 가용성 확인: 해석 결과 중 codex provider가 하나라도 있으면 `which codex`(또는 `bash -lc 'command -v codex'`)로 가용성을 확인한다. codex가 없으면 해당 role을 catalog default(claude/{model})로 폴백하고 경고를 출력한다.
 
-해석 결과 중 codex provider가 하나라도 있으면 `which codex`(또는 `bash -lc 'command -v codex'`)로 가용성을 확인한다.
-- codex가 없으면 해당 role을 catalog default(claude/{model})로 폴백하고 경고를 출력한다.
-
-**0c. 해석 테이블 출력 (필수)**:
-
-해석 결과를 다음 형식으로 stdout에 인쇄한다. 이 테이블이 출력되지 않은 채 Phase 1 이후로 진행하지 않는다.
+해석 테이블 출력 (필수): 해석 결과를 다음 형식으로 stdout에 인쇄한다. 이 테이블이 출력되지 않은 채 1b 이후로 진행하지 않는다.
 
 ```
 provider 해석:
@@ -69,16 +66,12 @@ provider 해석:
 
 이후 Phase 1/2/3/4의 디스패치는 이 테이블의 값을 기준으로 한다. PM provider가 codex이면 인터뷰 로직 전체를 codex companion task로 한 번에 위임하고, claude이면 오케스트레이터가 직접 수행한다.
 
----
-
-### Phase 1 — 초기화 (자동)
-
-**1a. task-id 생성 + brief.md 작성**
+**1b. task-id 생성 + brief.md 작성**
 
 유저 요청 원문을 `.crew/plans/{task-id}/brief.md`에 저장한다.
 task-id는 요청 내용에서 키워드를 추출하여 kebab-case로 생성한다.
 
-**1b. Explorer 호출 (병렬)**
+**1c. Explorer 호출 (병렬)**
 
 Explorer 서브에이전트를 병렬로 호출하여 프로젝트 구조를 파악한다.
 
@@ -93,7 +86,7 @@ runAgent(role="explorer", description="프로젝트 구조 탐색", prompt="..."
 
 탐색 결과는 오케스트레이터가 내부적으로 보유한다. 파일로 저장하지 않는다.
 
-**1c. 체크리스트 첫 평가**
+**1d. 체크리스트 첫 평가**
 
 유저 요청 + Explorer 결과를 기반으로 체크리스트 5개 항목을 첫 평가한다.
 
@@ -336,7 +329,7 @@ spec.md를 작성했습니다. 검토해주세요.
 
 ## 에이전트 호출 규칙
 
-본 메타 규칙은 Phase 0의 해석 결과를 기준으로 적용한다. 본 문서의 `runAgent(role, prompt, providerConfig)` 표기는 의사코드이며, 실제 호출은 항상 Phase 0의 해석 테이블에서 해당 role의 provider를 확인한 뒤 아래 분기 규칙에 따라 `Agent` 또는 `Bash`로 직접 디스패치한다.
+본 메타 규칙은 Phase 1a의 해석 결과를 기준으로 적용한다. 본 문서의 `runAgent(role, prompt, providerConfig)` 표기는 의사코드이며, 실제 호출은 항상 Phase 1a의 해석 테이블에서 해당 role의 provider를 확인한 뒤 아래 분기 규칙에 따라 `Agent` 또는 `Bash`로 직접 디스패치한다.
 
 - Claude provider: `Agent(subagent_type="{role}", model="{model}", description="...", prompt="...")`
 - Codex provider: `node "${CLAUDE_PLUGIN_ROOT}/scripts/crew-codex-companion.mjs" task --json --expect-crew-result --model {model} --effort {reasoning} --prompt-file {promptFile}`
@@ -345,7 +338,7 @@ spec.md를 작성했습니다. 검토해주세요.
 
 | 에이전트 | subagent_type | 기본 provider/model | 용도 | 호출 시점 |
 |----------|--------------|------|------|----------|
-| Explorer | explorer | `agent_defaults.explorer` | 코드베이스 탐색 (read-only) | Phase 1b (필수), Phase 2d (필요 시) |
+| Explorer | explorer | `agent_defaults.explorer` | 코드베이스 탐색 (read-only) | Phase 1c (필수), Phase 2d (필요 시) |
 | Researcher | researcher | `agent_defaults.researcher` | 외부 조사 (WebSearch) | Phase 2 중 필요 시 |
 
 **중요**: provider/model은 `.crew/config.json`, `~/.claude/crew/config.json`, `data/provider-catalog.json`의 `agent_defaults` 순서로 해석한다.
