@@ -14,37 +14,53 @@ const DEFAULT_PLUGIN_PATH = ".claude-plugin/plugin.json";
 const FALLBACK_PLUGIN_PATH = "plugin.json";
 
 export async function build({ root = process.cwd() } = {}) {
-  const projectRoot = resolve(root);
-  const contracts = loadContracts(
-    resolveInput(projectRoot, DEFAULT_CONTRACTS_PATH, FALLBACK_CONTRACTS_PATH)
-  );
-  const catalog = JSON.parse(
-    await readFile(
-      resolveInput(projectRoot, DEFAULT_CATALOG_PATH, FALLBACK_CATALOG_PATH),
-      "utf8"
-    )
-  );
-  const instructionsDir = resolveInput(
-    projectRoot,
-    DEFAULT_INSTRUCTIONS_DIR,
-    FALLBACK_INSTRUCTIONS_DIR
-  );
-  const pluginPath = resolveInput(
-    projectRoot,
-    DEFAULT_PLUGIN_PATH,
-    FALLBACK_PLUGIN_PATH
-  );
+  const inputs = resolveBuildInputs(resolve(root));
+  const contracts = loadContracts(inputs.contractsPath);
+  const catalog = JSON.parse(await readFile(inputs.catalogPath, "utf8"));
 
-  await warnOrphanInstructions({ instructionsDir, contracts });
+  await warnOrphanInstructions({
+    instructionsDir: inputs.instructionsDir,
+    contracts
+  });
 
-  const agentsDir = join(projectRoot, "agents");
+  const derived = await deriveBuildOutput({
+    root,
+    contracts,
+    catalog,
+    instructionsDir: inputs.instructionsDir,
+    pluginPath: inputs.pluginPath
+  });
+
+  const agentsDir = join(inputs.projectRoot, "agents");
   await mkdir(agentsDir, { recursive: true });
+
+  for (const [role, content] of derived.agents.entries()) {
+    await writeFile(join(agentsDir, `${role}.md`), content, "utf8");
+  }
+
+  await writeFile(inputs.pluginPath, derived.pluginJson, "utf8");
+}
+
+export async function deriveBuildOutput({
+  root = process.cwd(),
+  contracts,
+  catalog,
+  instructionsDir,
+  pluginPath
+} = {}) {
+  const inputs = resolveBuildInputs(resolve(root));
+  const resolvedContracts =
+    contracts ?? loadContracts(inputs.contractsPath);
+  const resolvedCatalog =
+    catalog ?? JSON.parse(await readFile(inputs.catalogPath, "utf8"));
+  const resolvedInstructionsDir = instructionsDir ?? inputs.instructionsDir;
+  const resolvedPluginPath = pluginPath ?? inputs.pluginPath;
 
   const instructionsByRole = new Map();
   const missingInstructions = [];
-  for (const contract of contracts.roles) {
+  for (const contract of resolvedContracts.roles) {
     const role = contract.role;
-    const instructionPath = join(instructionsDir, `${role}.md`);
+    const instructionPath = join(resolvedInstructionsDir, `${role}.md`);
     if (!existsSync(instructionPath)) {
       missingInstructions.push(role);
       continue;
@@ -59,10 +75,11 @@ export async function build({ root = process.cwd() } = {}) {
     );
   }
 
-  for (const contract of contracts.roles) {
+  const agents = new Map();
+  for (const contract of resolvedContracts.roles) {
     const role = contract.role;
 
-    const model = catalog.agent_defaults?.[role]?.model;
+    const model = resolvedCatalog.agent_defaults?.[role]?.model;
     if (typeof model !== "string" || model.length === 0) {
       throw new Error(`Missing provider catalog model for role: ${role}`);
     }
@@ -72,14 +89,18 @@ export async function build({ root = process.cwd() } = {}) {
       model,
       instructions: instructionsByRole.get(role)
     });
-    await writeFile(join(agentsDir, `${role}.md`), agent, "utf8");
+    agents.set(role, agent);
   }
 
-  const plugin = JSON.parse(await readFile(pluginPath, "utf8"));
-  plugin.agents = contracts.roles.map(
+  const plugin = JSON.parse(await readFile(resolvedPluginPath, "utf8"));
+  plugin.agents = resolvedContracts.roles.map(
     (contract) => `./agents/${contract.role}.md`
   );
-  await writeFile(pluginPath, `${JSON.stringify(plugin, null, 2)}\n`, "utf8");
+
+  return {
+    agents,
+    pluginJson: `${JSON.stringify(plugin, null, 2)}\n`
+  };
 }
 
 export function serializeFrontmatter({ name, model, description, tools }) {
@@ -150,6 +171,33 @@ function resolveInput(root, primary, fallback) {
   }
 
   return primaryPath;
+}
+
+export function resolveBuildInputs(root = process.cwd()) {
+  const projectRoot = resolve(root);
+  return {
+    projectRoot,
+    contractsPath: resolveInput(
+      projectRoot,
+      DEFAULT_CONTRACTS_PATH,
+      FALLBACK_CONTRACTS_PATH
+    ),
+    catalogPath: resolveInput(
+      projectRoot,
+      DEFAULT_CATALOG_PATH,
+      FALLBACK_CATALOG_PATH
+    ),
+    instructionsDir: resolveInput(
+      projectRoot,
+      DEFAULT_INSTRUCTIONS_DIR,
+      FALLBACK_INSTRUCTIONS_DIR
+    ),
+    pluginPath: resolveInput(
+      projectRoot,
+      DEFAULT_PLUGIN_PATH,
+      FALLBACK_PLUGIN_PATH
+    )
+  };
 }
 
 function normalizeBlockBody(body) {
