@@ -28,6 +28,7 @@
     "./agents/plan-evaluator.md"
   ],
   "skills": [
-    "./skills/"
+    "./skills/",
+    "./skills/crew-agent-runner/SKILL.md"
   ]
 }
