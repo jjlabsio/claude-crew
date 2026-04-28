@@ -1,6 +1,18 @@
 # Changelog
 
 
+## v0.1.33
+
+[compare changes](https://github.com/jjlabsio/claude-crew/compare/v0.1.32...v0.1.33)
+
+### 🩹 Fixes
+
+- Crew-plan/crew-interview 스킬에 Provider 설정 로드 단계 추가 ([#27](https://github.com/jjlabsio/claude-crew/pull/27))
+
+### ❤️ Contributors
+
+- Jaejin Song ([@jjlabsio](https://github.com/jjlabsio))
+
 ## v0.1.32
 
 [compare changes](https://github.com/jjlabsio/claude-crew/compare/v0.1.31...v0.1.32)
