@@ -34,37 +34,38 @@ description: 유저 요구사항을 인터뷰하여 개발 가능한 수준의 s
 
 ## 실행 순서
 
-PM 판단/질문/spec 작성 단계, Explorer 호출, Researcher 호출은 모두 provider 설정 대상이다. 오케스트레이터는 **반드시 Phase 1a에서 provider 설정을 먼저 해석한 뒤**, 각 단계의 디스패치를 분기한다. 본 문서의 `runAgent(role, ...)` 표기는 모두 의사코드이며, 실제로는 Phase 1a의 해석 테이블과 메타 섹션의 분기 규칙대로 `Agent` 또는 `Bash(crew-codex-companion)`를 직접 호출한다.
+에이전트 실행은 모두 중앙 `crew-agent-runner` 스킬의 dispatch 절차로 실행한다. 이 문서는 어떤 런타임을 어떻게 호출하는지가 아니라, 각 Phase가 어떤 역할에게 어떤 입력을 주고 어떤 결과를 받아야 하는지만 정의한다.
 
-- PM이 Claude provider이면 오케스트레이터가 인터뷰 로직을 직접 수행하면서 `AskUserQuestion`, Read/Write를 사용한다.
-- PM이 Codex provider이면 인터뷰 로직 자체를 codex companion task로 위임한다. Codex는 직접 질문하거나 `.crew/` 파일을 쓰지 않는다. 질문이 필요하면 `blocked_on_user`, 추가 탐색이 필요하면 `needs_agent`, 최종 spec은 `complete.artifact`로 반환한다.
-- Codex PM의 `artifact`는 오케스트레이터가 `.crew/plans/{task-id}/spec.md`로 저장한다.
+### Phase 1 — 초기화
 
-### Phase 1 — 초기화 (자동)
+중앙 `crew-agent-runner` 스킬의 dispatch 절차로 실행한다.
 
-**1a. Provider 설정 로드**
+role: pm, Explorer
 
-이 단계를 건너뛰지 않는다. 어떤 단계든 에이전트 호출 직전에 1a의 해석 테이블이 출력되어 있어야 한다.
+inputs:
+- 유저 원본 요청
+- 현재 프로젝트 루트
+- 기존 `.crew/plans/` 상태
 
-cascading 해석:
+output:
+- `.crew/plans/{task-id}/brief.md`
+- Explorer 프로젝트 구조 요약
+- 최초 요구사항 체크리스트 평가
 
-1. `${CLAUDE_PLUGIN_ROOT}/data/provider-catalog.json`을 읽어 `agent_defaults`와 `agent_runtime`을 로드한다.
-2. `~/.claude/crew/config.json`이 있으면 `providers.{role}` 필드로 user-level 오버라이드를 적용한다.
-3. `{projectRoot}/.crew/config.json`이 있으면 `providers.{role}` 필드로 project-level 오버라이드를 다시 적용한다 (최우선).
-4. 본 스킬의 적용 대상 role은 `pm`, `explorer`, `researcher` 세 개다. 각 role의 `{provider, model, reasoning?, codex_sandbox}` 값을 결정한다.
+role instructions:
+- PM은 요청 내용에서 키워드를 추출하여 kebab-case task-id를 생성한다.
+- 오케스트레이터가 유저 원본 요청을 `.crew/plans/{task-id}/brief.md`에 저장한다.
+- Explorer는 프로젝트 구조를 병렬로 파악하고, 결과를 파일로 저장하지 않고 인터뷰 컨텍스트로만 제공한다.
+- PM은 유저 요청과 Explorer 결과를 기반으로 체크리스트 5개 항목을 첫 평가한다.
 
-Codex 가용성 확인: 해석 결과 중 codex provider가 하나라도 있으면 `which codex`(또는 `bash -lc 'command -v codex'`)로 가용성을 확인한다. codex가 없으면 해당 role을 catalog default(claude/{model})로 폴백하고 경고를 출력한다.
+success gate:
+- `brief.md`가 생성되었다.
+- Explorer 결과에 기술 스택, 주요 모듈 구조, 관련 기존 코드/기능 유무, 기존 패턴이 포함되었다.
+- 체크리스트 각 항목이 YES / NO / 해당없음 중 하나로 판정되었다.
 
-해석 테이블 출력 (필수): 해석 결과를 다음 형식으로 stdout에 인쇄한다. 이 테이블이 출력되지 않은 채 1b 이후로 진행하지 않는다.
-
-```
-provider 해석:
-- pm: {provider} / {model}{reasoning이 있으면 / {reasoning}} ({codex_sandbox})
-- explorer: {provider} / {model}{...}
-- researcher: {provider} / {model}{...}
-```
-
-이후 Phase 1/2/3/4의 디스패치는 이 테이블의 값을 기준으로 한다. PM provider가 codex이면 인터뷰 로직 전체를 codex companion task로 한 번에 위임하고, claude이면 오케스트레이터가 직접 수행한다.
+failure handling:
+- task-id 또는 `brief.md`를 만들 수 없으면 실패 사유와 필요한 사용자 입력을 반환한다.
+- Explorer가 충분한 구조 정보를 제공하지 못하면 누락 영역을 명시하고 추가 Explorer 탐색을 요청한다.
 
 **1b. task-id 생성 + brief.md 작성**
 
@@ -73,11 +74,7 @@ task-id는 요청 내용에서 키워드를 추출하여 kebab-case로 생성한
 
 **1c. Explorer 호출 (병렬)**
 
-Explorer 서브에이전트를 병렬로 호출하여 프로젝트 구조를 파악한다.
-
-```
-runAgent(role="explorer", description="프로젝트 구조 탐색", prompt="...")
-```
+Explorer는 중앙 runner를 통해 병렬 실행되어 프로젝트 구조를 파악한다.
 
 탐색 목적:
 - 프로젝트 기술 스택, 주요 모듈 구조
@@ -108,6 +105,39 @@ runAgent(role="explorer", description="프로젝트 구조 탐색", prompt="..."
 ---
 
 ### Phase 2 — 인터뷰 루프
+
+중앙 `crew-agent-runner` 스킬의 dispatch 절차로 실행한다.
+
+role: pm, Explorer, Researcher
+
+inputs:
+- `.crew/plans/{task-id}/brief.md`
+- Phase 1 Explorer 결과
+- 현재까지 수집된 사용자 답변
+- 필요 시 추가 Explorer/Researcher 결과
+
+output:
+- 체크리스트 YES / NO / 해당없음 상태
+- 인터뷰 결정 사항
+- 필요 시 큰 기획 갭 에스컬레이션
+
+role instructions:
+- PM은 체크리스트의 NO 항목 중 가장 선행되어야 할 항목을 선택한다.
+- PM은 한 번에 질문 하나만 사용자에게 제시한다.
+- PM은 객관식 2-3개를 우선 제시하고, 직접 입력을 보조 선택지로 둔다.
+- Explorer는 사용자의 답변이 특정 코드 영역을 지칭할 때 심화 탐색을 수행한다.
+- Researcher는 외부 정보가 요구사항 결정에 필요할 때만 조사 결과를 제공한다.
+- PM은 답변 후 체크리스트를 재평가하고, 전부 YES 또는 해당없음이면 Phase 3으로 이동한다.
+
+success gate:
+- 모든 체크리스트 항목이 YES 또는 해당없음이거나, 조기 종료/하드캡 조건이 명시적으로 기록되었다.
+- 질문과 답변이 스코프, 유저 플로우, UI/콘텐츠, 비즈니스 규칙, 수용 기준 중 어떤 항목을 해소하는지 추적 가능하다.
+- 큰 기획 갭이 있으면 인터뷰를 중단하고 별도 기획 프롬프트를 제공했다.
+
+failure handling:
+- 사용자가 답변을 보류하면 남은 NO 항목과 현재 상태로 진행할 때의 위험을 설명하고 진행 여부를 묻는다.
+- 추가 탐색이 실패하면 해당 코드/조사 영역을 미확인 항목으로 기록하고 사용자에게 대체 결정을 요청한다.
+- 라운드 제한에 도달하면 남은 NO 항목을 경고로 유지한 채 Phase 3으로 이동한다.
 
 매 턴 아래 사이클을 반복한다:
 
@@ -153,9 +183,7 @@ NO 항목 중 **가장 선행되어야 할 것**을 선택한다.
 유저 답변에서 언급된 구체적 영역의 코드를 추가 탐색해야 하면 Explorer를 병렬 호출한다.
 예: 유저가 "기존 결제 로직에 추가"라고 답하면 결제 관련 코드를 탐색.
 
-```
-runAgent(role="explorer", description="결제 관련 코드 탐색", prompt="...")
-```
+외부 시장/정책/문서 정보가 요구사항 결정에 필요하면 Researcher를 실행하고, 결과를 다음 질문이나 체크리스트 재평가에 반영한다.
 
 **2e. 유저 답변 수신 + 큰 기획 갭 감지**
 
@@ -206,6 +234,35 @@ runAgent(role="explorer", description="결제 관련 코드 탐색", prompt="...
 
 ### Phase 3 — Simplifier
 
+중앙 `crew-agent-runner` 스킬의 dispatch 절차로 실행한다.
+
+role: pm
+
+inputs:
+- Phase 2 인터뷰 결정 사항
+- 체크리스트 최종 상태
+- 조기 종료/하드캡 경고가 있으면 해당 목록
+
+output:
+- 확정 v1 스코프
+- v2 이후로 미룰 항목 목록
+- 사용자 스코프 결정
+
+role instructions:
+- PM은 지금까지 확정된 전체 스코프를 정리하여 사용자에게 보여준다.
+- PM은 각 스코프 항목이 v1에 꼭 필요한지 판단한다.
+- 빼도 되는 항목이 있으면 이유와 함께 사용자에게 선택지를 제시한다.
+- 사용자의 결정을 반영하여 최종 스코프를 확정한다.
+
+success gate:
+- v1에 포함할 항목과 제외할 항목이 명확히 나뉘었다.
+- 사용자가 Simplifier 제안에 대해 유지/연기/부분 연기 중 하나를 선택했다.
+- Phase 4에서 spec.md로 결정화할 수 있는 수준의 스코프가 확보되었다.
+
+failure handling:
+- 사용자가 스코프 결정을 보류하면 보류 항목을 미해소 항목으로 기록하고 현재 상태로 spec 작성을 진행할지 묻는다.
+- v1 스코프가 하루 작업을 초과하면 분리를 권고하고, 사용자의 진행 결정을 받는다.
+
 체크리스트 전부 YES (또는 조기 종료/하드캡) 후 실행한다.
 
 **3a. 스코프 정리**
@@ -238,6 +295,37 @@ runAgent(role="explorer", description="결제 관련 코드 탐색", prompt="...
 ---
 
 ### Phase 4 — spec 결정화 + 유저 승인
+
+중앙 `crew-agent-runner` 스킬의 dispatch 절차로 실행한다.
+
+role: pm
+
+inputs:
+- `.crew/plans/{task-id}/brief.md`
+- Phase 2 인터뷰 결정 사항
+- Phase 3 최종 스코프
+- 미해소 항목과 경고 목록
+
+output:
+- `.crew/plans/{task-id}/spec.md`
+- 사용자 승인 또는 수정 요청
+- 승인 후 crew-plan 전환 여부
+
+role instructions:
+- PM은 인터뷰 결과를 구조화된 spec.md 초안으로 만든다.
+- 오케스트레이터가 `.crew/plans/{task-id}/spec.md`에 저장한다.
+- PM은 작성된 spec.md 전체를 사용자에게 제시하고 승인, 수정 요청, 거부 중 하나를 받는다.
+- 승인 후 사용자가 원하면 `claude-crew:crew-plan` 스킬로 전환한다.
+
+success gate:
+- spec.md에 목표, 스코프 경계, 유저 플로우, UI/콘텐츠, 비즈니스 규칙, 수용 기준, 전제 조건 중 해당 섹션만 포함되었다.
+- 수용 기준은 3-7개이며 검증 가능한 행동으로 작성되었다.
+- 사용자가 spec.md를 승인했거나, 수정/거부 흐름으로 되돌아갈 다음 Phase가 명확하다.
+
+failure handling:
+- 사용자가 수정 요청을 하면 spec.md를 갱신하고 다시 승인 요청을 진행한다.
+- 사용자가 거부하면 Phase 2로 돌아가 체크리스트를 재평가한다.
+- 조기 종료/하드캡으로 진행한 경우 미해소 항목을 spec.md 최하단에 경고로 기록한다.
 
 **4a. spec.md 작성**
 
@@ -327,36 +415,15 @@ spec.md를 작성했습니다. 검토해주세요.
 
 ---
 
-## 에이전트 호출 규칙
+## 에이전트 역할
 
-본 메타 규칙은 Phase 1a의 해석 결과를 기준으로 적용한다. 본 문서의 `runAgent(role, prompt, providerConfig)` 표기는 의사코드이며, 실제 호출은 항상 Phase 1a의 해석 테이블에서 해당 role의 provider를 확인한 뒤 아래 분기 규칙에 따라 `Agent` 또는 `Bash`로 직접 디스패치한다.
+| 에이전트 | role | 용도 | 실행 시점 |
+|----------|------|------|----------|
+| PM | pm | 인터뷰 판단, 질문 생성, 스코프 정리, spec.md 결정화 | Phase 1-4 |
+| Explorer | explorer | 코드베이스 탐색 | Phase 1c 필수, Phase 2d 필요 시 |
+| Researcher | researcher | 외부 조사 | Phase 2 중 필요 시 |
 
-- Claude provider: `Agent(subagent_type="{role}", model="{model}", description="...", prompt="...")`
-- Codex provider: `node "${CLAUDE_PLUGIN_ROOT}/scripts/crew-codex-companion.mjs" task --json --expect-crew-result --model {model} --effort {reasoning} --prompt-file {promptFile}`
-- `data/provider-catalog.json`의 `agent_runtime.{role}.codex_sandbox`가 `workspace-write`일 때만 `--write`를 붙인다. interview 단계 에이전트는 모두 read-only다.
-- Codex provider는 `.crew/` 파일을 직접 읽거나 쓰지 않는다. 필요한 컨텍스트는 오케스트레이터가 프롬프트에 인라인 주입하고, 산출물은 `artifact`로 반환받아 오케스트레이터가 저장한다.
-
-| 에이전트 | subagent_type | 기본 provider/model | 용도 | 호출 시점 |
-|----------|--------------|------|------|----------|
-| Explorer | explorer | `agent_defaults.explorer` | 코드베이스 탐색 (read-only) | Phase 1c (필수), Phase 2d (필요 시) |
-| Researcher | researcher | `agent_defaults.researcher` | 외부 조사 (WebSearch) | Phase 2 중 필요 시 |
-
-**중요**: provider/model은 `.crew/config.json`, `~/.claude/crew/config.json`, `data/provider-catalog.json`의 `agent_defaults` 순서로 해석한다.
-
-Codex provider 결과는 마지막 `<crew-agent-result>` 블록으로 파싱한다.
-
-```json
-{
-  "status": "complete | blocked_on_user | needs_agent | needs_tool | failed",
-  "artifact": "최종 산출물 또는 결과",
-  "questions": [],
-  "requests": [],
-  "summary": "짧은 요약",
-  "error": null
-}
-```
-
-`blocked_on_user`는 오케스트레이터가 `AskUserQuestion`으로 처리하고, `needs_agent`는 요청된 role을 다시 `runAgent`로 실행한 뒤 결과를 원래 에이전트에 `--resume-last`로 주입한다.
+모든 역할 실행, 사용자 질문 대기, 추가 에이전트 요청, 실패 처리는 중앙 `crew-agent-runner` 스킬의 상태 처리 규칙을 따른다.
 
 ---
 
