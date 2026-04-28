@@ -40,11 +40,44 @@ crew-interview가 생성한 spec.md를 입력으로 받아 **HOW(어떻게 만�
 
 ## 실행 순서
 
-TechLead, Planner, PlanEvaluator는 모두 provider 설정 대상이다. 오케스트레이터는 각 단계에서 `runAgent(role, prompt, providerConfig)`를 사용한다.
+TechLead, Planner, PlanEvaluator, Explorer, Researcher는 모두 provider 설정 대상이다. 오케스트레이터는 **반드시 Step 0에서 provider 설정을 먼저 해석한 뒤**, 각 단계의 디스패치를 분기한다. 본 문서에 등장하는 `runAgent(role, prompt, providerConfig)` 표기는 모두 의사코드이며, 실제로는 Step 0의 해석 테이블과 각 Step의 분기 규칙대로 `Agent` 또는 `Bash(crew-codex-companion)`를 직접 호출한다.
 
 - Claude provider이면 기존 Claude Code `Agent` 호출을 사용한다.
 - Codex provider이면 read-only companion task를 사용하고, 산출물은 `<crew-agent-result>.artifact`로 반환받아 오케스트레이터가 `.crew/` 파일에 저장한다.
 - Codex TechLead/Planner가 Explorer/Researcher가 필요하면 직접 호출하지 않고 `needs_agent`를 반환한다. 오케스트레이터가 요청된 에이전트를 실행한 뒤 결과를 원래 Codex thread에 `--resume-last`로 주입한다.
+
+### Step 0 — Provider 설정 로드 (오케스트레이터 직접, 필수 선행 단계)
+
+이 Step을 건너뛰지 않는다. 어떤 단계든 에이전트 호출 직전에 Step 0의 해석 테이블이 출력되어 있어야 한다.
+
+**0a. cascading 해석**:
+
+1. `${CLAUDE_PLUGIN_ROOT}/data/provider-catalog.json`을 읽어 `agent_defaults`와 `agent_runtime`을 로드한다.
+2. `~/.claude/crew/config.json`이 있으면 `providers.{role}` 필드로 user-level 오버라이드를 적용한다.
+3. `{projectRoot}/.crew/config.json`이 있으면 `providers.{role}` 필드로 project-level 오버라이드를 다시 적용한다 (최우선).
+4. 본 스킬의 적용 대상 role은 `techlead`, `planner`, `plan-evaluator`, `explorer`, `researcher` 다섯 개다. 각 role의 `{provider, model, reasoning?, codex_sandbox}` 값을 결정한다.
+
+**0b. Codex 가용성 확인**:
+
+해석 결과 중 codex provider가 하나라도 있으면 `which codex`(또는 `bash -lc 'command -v codex'`)로 가용성을 확인한다.
+- codex가 없으면 해당 role을 catalog default(claude/{model})로 폴백하고 경고를 출력한다.
+
+**0c. 해석 테이블 출력 (필수)**:
+
+해석 결과를 다음 형식으로 stdout에 인쇄한다. 이 테이블이 출력되지 않은 채 Step 1 이후로 진행하지 않는다.
+
+```
+provider 해석:
+- techlead: {provider} / {model}{reasoning이 있으면 / {reasoning}} ({codex_sandbox})
+- planner: {provider} / {model}{...}
+- plan-evaluator: {provider} / {model}{...}
+- explorer: {provider} / {model}{...}
+- researcher: {provider} / {model}{...}
+```
+
+이후 Step 2/3/4의 디스패치는 이 테이블의 값을 기준으로 한다.
+
+---
 
 ### Step 1 — spec.md 유효성 검사 (오케스트레이터 직접)
 
@@ -64,15 +97,23 @@ spec.md가 없거나 비어 있습니다. crew-interview를 먼저 실행해야 
 
 ### Step 2 — TechLead 에이전트 실행
 
-**provider/model**: 설정 resolver가 결정한다 (기본값: `agent_defaults.techlead`).
+**provider/model**: Step 0의 해석 테이블에서 `techlead`의 값을 사용한다. catalog default는 `agent_defaults.techlead`(claude/opus)이지만, user/project config가 우선한다.
 
-Claude provider 호출 예:
+해석 테이블의 provider 값에 따라 분기 디스패치한다:
 
-```
-Agent(subagent_type="techlead", description="TechLead: {task-id} 사전 분석", prompt="...")
-```
+- **claude**:
+  ```
+  Agent(subagent_type="techlead", model="{model}", description="TechLead: {task-id} 사전 분석", prompt="...")
+  ```
+- **codex**:
+  ```bash
+  node "${CLAUDE_PLUGIN_ROOT}/scripts/crew-codex-companion.mjs" task --json --expect-crew-result --model {model} --effort {reasoning} --prompt-file {promptFile}
+  ```
+  - `agent_runtime.techlead.codex_sandbox`가 `workspace-write`인 경우에만 `--write`를 추가한다 (plan 단계 에이전트는 모두 read-only).
+  - Codex는 `.crew/`에 직접 접근하지 않으므로, `spec.md` 내용을 `{promptFile}`에 인라인 주입한다.
+  - 마지막 `<crew-agent-result>` 블록의 `artifact`를 추출하여 Step 2 결과 저장에 사용한다.
 
-에이전트 프롬프트:
+에이전트 프롬프트 (claude/codex 공통, codex의 경우 `{promptFile}`에 그대로 주입):
 
 ```
 당신은 TechLead 에이전트다. 사전 분석을 수행하고 아키텍처 방향을 판단한다.
@@ -158,13 +199,21 @@ TechLead의 analysis.md에서 테스트 인프라 섹션을 확인한 후, 오�
 
 ### Step 3 — Planner 에이전트 실행
 
-**provider/model**: 설정 resolver가 결정한다 (기본값: `agent_defaults.planner`).
+**provider/model**: Step 0의 해석 테이블에서 `planner`의 값을 사용한다. catalog default는 `agent_defaults.planner`(claude/opus)이지만, user/project config가 우선한다.
 
-Claude provider 호출 예:
+해석 테이블의 provider 값에 따라 분기 디스패치한다:
 
-```
-Agent(subagent_type="planner", description="Planner: {task-id} 구현 계획", prompt="...")
-```
+- **claude**:
+  ```
+  Agent(subagent_type="planner", model="{model}", description="Planner: {task-id} 구현 계획", prompt="...")
+  ```
+- **codex**:
+  ```bash
+  node "${CLAUDE_PLUGIN_ROOT}/scripts/crew-codex-companion.mjs" task --json --expect-crew-result --model {model} --effort {reasoning} --prompt-file {promptFile}
+  ```
+  - `agent_runtime.planner.codex_sandbox`가 `workspace-write`인 경우에만 `--write` 추가 (Planner는 read-only).
+  - 첫 번째 실행 시 `spec.md` + `analysis.md`를 `{promptFile}`에 인라인 주입한다. retry 시 추가로 `review-{n}.md`를 주입한다.
+  - Planner는 plan.md 작성을 직접 수행해야 하나, codex provider는 `.crew/`에 쓰지 않으므로 `artifact`로 plan.md 본문 텍스트를 반환받아 오케스트레이터가 저장한다.
 
 **첫 번째 실행 시 에이전트 프롬프트**:
 
@@ -264,13 +313,21 @@ plan.md 최상단에 "이전 피드백 반영" 섹션을 추가한다.
 
 ### Step 4 — PlanEvaluator 에이전트 실행
 
-**provider/model**: 설정 resolver가 결정한다 (기본값: `agent_defaults.plan-evaluator`).
+**provider/model**: Step 0의 해석 테이블에서 `plan-evaluator`의 값을 사용한다. catalog default는 `agent_defaults.plan-evaluator`(claude/sonnet)이지만, user/project config가 우선한다.
 
-Claude provider 호출 예:
+해석 테이블의 provider 값에 따라 분기 디스패치한다:
 
-```
-Agent(subagent_type="plan-evaluator", description="PlanEvaluator: {task-id} 계획 검증", prompt="...")
-```
+- **claude**:
+  ```
+  Agent(subagent_type="plan-evaluator", model="{model}", description="PlanEvaluator: {task-id} 계획 검증", prompt="...")
+  ```
+- **codex**:
+  ```bash
+  node "${CLAUDE_PLUGIN_ROOT}/scripts/crew-codex-companion.mjs" task --json --expect-crew-result --model {model} --effort {reasoning} --prompt-file {promptFile}
+  ```
+  - PlanEvaluator는 read-only이므로 `--write`를 붙이지 않는다.
+  - `spec.md` + `analysis.md` + `plan.md`를 `{promptFile}`에 인라인 주입한다.
+  - 마지막 `<crew-agent-result>` 블록의 `artifact`를 추출하여 Step 4 결과 저장(`review.md`)에 사용한다.
 
 에이전트 프롬프트:
 
@@ -492,7 +549,7 @@ Planner + PlanEvaluator 사이클은 최대 5회 (초기 1회 + retry 최대 4�
 
 ## 에이전트 호출 컨텍스트 규칙
 
-오케스트레이터는 모든 에이전트를 `runAgent(role, prompt, providerConfig)` 규칙으로 호출한다.
+본 메타 규칙은 Step 0의 해석 결과를 기준으로 적용한다. 본 문서의 `runAgent(role, prompt, providerConfig)` 표기는 의사코드이며, 실제 호출은 항상 Step 0의 해석 테이블에서 해당 role의 provider를 확인한 뒤 아래 분기 규칙에 따라 `Agent` 또는 `Bash`로 직접 디스패치한다.
 
 - Claude provider: `Agent(subagent_type="{role}", model="{model}", description="...", prompt="...")`
 - Codex provider: `node "${CLAUDE_PLUGIN_ROOT}/scripts/crew-codex-companion.mjs" task --json --expect-crew-result --model {model} --effort {reasoning} --prompt-file {promptFile}`
