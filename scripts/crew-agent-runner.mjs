@@ -8,10 +8,11 @@ import {
   loadUserConfig
 } from "./lib/config.mjs";
 import { parseArgv } from "./lib/cli.mjs";
+import { dispatch, DispatchError } from "./lib/dispatch.mjs";
 import { renderPrompt } from "./lib/render.mjs";
 import { resolveRole } from "./lib/resolve.mjs";
 
-function main(argv) {
+async function main(argv) {
   const { positional, flags } = parseArgv(argv);
   const command = positional[0];
 
@@ -22,6 +23,10 @@ function main(argv) {
 
   if (command === "render") {
     return renderCommand(flags);
+  }
+
+  if (command === "dispatch") {
+    return dispatchCommand(flags);
   }
 
   if (command !== "resolve") {
@@ -52,6 +57,62 @@ function main(argv) {
   } catch (error) {
     console.error(error.message);
     return 1;
+  }
+}
+
+async function dispatchCommand(flags) {
+  if (typeof flags.role !== "string" || flags.role.length === 0) {
+    console.error("Missing required --role <name>");
+    return 1;
+  }
+
+  if (
+    typeof flags["request-file"] !== "string" ||
+    flags["request-file"].length === 0
+  ) {
+    console.error("Missing required --request-file <path>");
+    return 1;
+  }
+
+  if (
+    flags["resume-handle"] !== undefined &&
+    (typeof flags["resume-handle"] !== "string" ||
+      flags["resume-handle"].length === 0)
+  ) {
+    console.error("Missing value for --resume-handle <thread-id>");
+    return 1;
+  }
+
+  try {
+    const contracts = loadContracts();
+    const resolved = resolveRole({
+      role: flags.role,
+      catalog: loadCatalog(),
+      userConfig: loadUserConfig(),
+      projectConfig: loadProjectConfig(),
+      contracts
+    });
+    const request = JSON.parse(readFileSync(flags["request-file"], "utf8"));
+    const agentResult = await dispatch({
+      role: flags.role,
+      request,
+      resolved,
+      contract: resolved.contract,
+      resumeHandle: flags["resume-handle"]
+    });
+
+    writeDispatchResult(agentResult, flags);
+    if (agentResult.status === "failed") {
+      console.error("Companion returned failed AgentResult.");
+      return 1;
+    }
+    return 0;
+  } catch (error) {
+    if (error instanceof DispatchError && error.agentResult) {
+      writeDispatchResult(error.agentResult, flags);
+    }
+    console.error(error.message);
+    return error instanceof DispatchError ? error.exitCode : 1;
   }
 }
 
@@ -112,10 +173,22 @@ function findContract(role, contracts) {
   return contracts.roles.find((contract) => contract.role === role);
 }
 
+function writeDispatchResult(agentResult, flags) {
+  if (flags.json) {
+    process.stdout.write(`${JSON.stringify(agentResult, null, 2)}\n`);
+    return;
+  }
+
+  process.stdout.write(`${agentResult.summary ?? agentResult.status}\n`);
+}
+
 function usage() {
   console.error("Usage: crew-agent-runner resolve --role <name> [--json]");
   console.error("       crew-agent-runner render --role <name> --request-file <path>");
+  console.error(
+    "       crew-agent-runner dispatch --role <name> --request-file <path> [--json] [--resume-handle <thread-id>]"
+  );
 }
 
-const exitCode = main(process.argv.slice(2));
+const exitCode = await main(process.argv.slice(2));
 process.exitCode = exitCode;
