@@ -1,0 +1,18 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`renderFollowup > renders TS-7.1 followup prompt exactly 1`] = `
+"## 이전 결과
+status: blocked_on_user
+summary: ...
+artifact:
+---
+...
+---
+
+## 추가 입력
+사용자 답변 X
+
+## 지시
+계속 진행해라.
+"
+`;

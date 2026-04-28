@@ -25,6 +25,10 @@ export function section(title, body, options = {}) {
   return `## ${title}\n${renderedBody}`;
 }
 
+export function fenceBlock(body, fence = "---") {
+  return `${fence}\n${normalizeBlockBody(body)}\n${fence}`;
+}
+
 function renderCapability(contract) {
   const tools = Array.isArray(contract.claudeSubagent?.tools)
     ? contract.claudeSubagent.tools
@@ -74,6 +78,17 @@ function normalizeBody(body) {
   }
 
   return String(body).trim();
+}
+
+function normalizeBlockBody(body) {
+  if (body === undefined || body === null) {
+    return "";
+  }
+
+  return String(body)
+    .replace(/^\uFEFF/, "")
+    .replace(/\r\n?/g, "\n")
+    .replace(/\n+$/g, "");
 }
 
 function titleCase(value) {

@@ -9,6 +9,7 @@ import {
 } from "./lib/config.mjs";
 import { parseArgv } from "./lib/cli.mjs";
 import { dispatch, DispatchError } from "./lib/dispatch.mjs";
+import { renderFollowup } from "./lib/renderFollowup.mjs";
 import { renderPrompt } from "./lib/render.mjs";
 import { resolveRole } from "./lib/resolve.mjs";
 
@@ -27,6 +28,10 @@ async function main(argv) {
 
   if (command === "dispatch") {
     return dispatchCommand(flags);
+  }
+
+  if (command === "render-followup") {
+    return renderFollowupCommand(flags);
   }
 
   if (command !== "resolve") {
@@ -53,6 +58,36 @@ async function main(argv) {
     } else {
       process.stdout.write(formatTable(value));
     }
+    return 0;
+  } catch (error) {
+    console.error(error.message);
+    return 1;
+  }
+}
+
+function renderFollowupCommand(flags) {
+  if (
+    typeof flags["previous-result"] !== "string" ||
+    flags["previous-result"].length === 0
+  ) {
+    console.error("Missing required --previous-result <file>");
+    return 1;
+  }
+
+  if (
+    typeof flags["new-input"] !== "string" ||
+    flags["new-input"].length === 0
+  ) {
+    console.error("Missing required --new-input <file>");
+    return 1;
+  }
+
+  try {
+    const previousResult = JSON.parse(
+      readFileSync(flags["previous-result"], "utf8")
+    );
+    const newInput = readFileSync(flags["new-input"], "utf8");
+    process.stdout.write(renderFollowup({ previousResult, newInput }));
     return 0;
   } catch (error) {
     console.error(error.message);
@@ -185,6 +220,9 @@ function writeDispatchResult(agentResult, flags) {
 function usage() {
   console.error("Usage: crew-agent-runner resolve --role <name> [--json]");
   console.error("       crew-agent-runner render --role <name> --request-file <path>");
+  console.error(
+    "       crew-agent-runner render-followup --previous-result <file> --new-input <file>"
+  );
   console.error(
     "       crew-agent-runner dispatch --role <name> --request-file <path> [--json] [--resume-handle <thread-id>]"
   );
