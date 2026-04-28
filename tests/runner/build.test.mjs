@@ -34,6 +34,15 @@ describe("build", () => {
       expect(content.endsWith("\n")).toBe(true);
       expect(content.endsWith("\n\n")).toBe(false);
     }
+    const devAgent = await readFile(join(tmpDir, "agents", "dev.md"), "utf8");
+    const codeReviewerAgent = await readFile(
+      join(tmpDir, "agents", "code-reviewer.md"),
+      "utf8"
+    );
+    expect(devAgent).toContain("\nmodel: opus\n");
+    expect(devAgent).not.toContain("\nmodel: gpt-5.5\n");
+    expect(codeReviewerAgent).toContain("\nmodel: opus\n");
+    expect(codeReviewerAgent).not.toContain("\nmodel: gpt-5.5\n");
 
     const plugin = JSON.parse(
       await readFile(join(tmpDir, ".claude-plugin", "plugin.json"), "utf8")
@@ -138,7 +147,7 @@ async function setupBuildRoot(root) {
       },
       claudeSubagent: {
         name: role,
-        model: "ignored-by-build",
+        model: index === 4 ? "haiku" : index >= 7 ? "opus" : "sonnet",
         description: `${role} description`,
         tools: ["Read", "Glob", "Grep"]
       }
@@ -148,7 +157,7 @@ async function setupBuildRoot(root) {
     agent_defaults: Object.fromEntries(
       roles.map((role, index) => [
         role,
-        { provider: index === 7 ? "codex" : "claude", model: `${role}-model` }
+        { provider: index >= 7 ? "codex" : "claude", model: "gpt-5.5" }
       ])
     )
   };
@@ -196,7 +205,7 @@ function expectedAgent(fixture, role) {
   return [
     "---",
     `name: ${role}`,
-    `model: ${fixture.catalog.agent_defaults[role].model}`,
+    `model: ${contract.claudeSubagent.model}`,
     `description: ${contract.claudeSubagent.description}`,
     "tools: [Read, Glob, Grep]",
     "---",

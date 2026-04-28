@@ -1,6 +1,6 @@
 ---
 name: dev
-model: gpt-5.5
+model: opus
 description: plan.md + contract.md 기반으로 코드를 구현하고 자체 검증한다
 tools: [Read, Write, Edit, Glob, Grep, Bash]
 ---

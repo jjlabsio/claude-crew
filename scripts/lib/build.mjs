@@ -16,7 +16,6 @@ const FALLBACK_PLUGIN_PATH = "plugin.json";
 export async function build({ root = process.cwd() } = {}) {
   const inputs = resolveBuildInputs(resolve(root));
   const contracts = loadContracts(inputs.contractsPath);
-  const catalog = JSON.parse(await readFile(inputs.catalogPath, "utf8"));
 
   await warnOrphanInstructions({
     instructionsDir: inputs.instructionsDir,
@@ -26,7 +25,6 @@ export async function build({ root = process.cwd() } = {}) {
   const derived = await deriveBuildOutput({
     root,
     contracts,
-    catalog,
     instructionsDir: inputs.instructionsDir,
     pluginPath: inputs.pluginPath
   });
@@ -44,15 +42,12 @@ export async function build({ root = process.cwd() } = {}) {
 export async function deriveBuildOutput({
   root = process.cwd(),
   contracts,
-  catalog,
   instructionsDir,
   pluginPath
 } = {}) {
   const inputs = resolveBuildInputs(resolve(root));
   const resolvedContracts =
     contracts ?? loadContracts(inputs.contractsPath);
-  const resolvedCatalog =
-    catalog ?? JSON.parse(await readFile(inputs.catalogPath, "utf8"));
   const resolvedInstructionsDir = instructionsDir ?? inputs.instructionsDir;
   const resolvedPluginPath = pluginPath ?? inputs.pluginPath;
 
@@ -79,9 +74,9 @@ export async function deriveBuildOutput({
   for (const contract of resolvedContracts.roles) {
     const role = contract.role;
 
-    const model = resolvedCatalog.agent_defaults?.[role]?.model;
+    const model = contract.claudeSubagent?.model;
     if (typeof model !== "string" || model.length === 0) {
-      throw new Error(`Missing provider catalog model for role: ${role}`);
+      throw new Error(`Missing Claude subagent model for role: ${role}`);
     }
 
     const agent = renderAgent({

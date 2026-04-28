@@ -1,6 +1,6 @@
 ---
 name: code-reviewer
-model: gpt-5.5
+model: opus
 description: 코드 품질 판정 — git diff + 가드레일(인라인) + 기존 코드 탐색
 tools: [Read, Glob, Grep]
 ---

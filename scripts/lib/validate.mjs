@@ -14,7 +14,6 @@ export async function validate({ root = process.cwd() } = {}) {
   const derived = await deriveBuildOutput({
     root: projectRoot,
     contracts,
-    catalog,
     instructionsDir: inputs.instructionsDir,
     pluginPath: inputs.pluginPath
   });
