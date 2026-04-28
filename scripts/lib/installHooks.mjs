@@ -1,3 +1,4 @@
+import { execFileSync } from "node:child_process";
 import { chmod, mkdir, readFile, stat, writeFile } from "node:fs/promises";
 import { dirname, isAbsolute, join, resolve } from "node:path";
 
@@ -55,6 +56,13 @@ export function upsertManagedBlock(content, block) {
 }
 
 async function resolveHooksDir(projectRoot) {
+  const configuredHooksPath = readConfiguredHooksPath(projectRoot);
+  if (configuredHooksPath) {
+    return isAbsolute(configuredHooksPath)
+      ? configuredHooksPath
+      : resolve(projectRoot, configuredHooksPath);
+  }
+
   const dotGit = join(projectRoot, ".git");
   try {
     const dotGitStat = await stat(dotGit);
@@ -76,6 +84,19 @@ async function resolveHooksDir(projectRoot) {
 
   const gitDir = match[1];
   return join(isAbsolute(gitDir) ? gitDir : resolve(dirname(dotGit), gitDir), "hooks");
+}
+
+function readConfiguredHooksPath(projectRoot) {
+  try {
+    const hooksPath = execFileSync(
+      "git",
+      ["-C", projectRoot, "config", "--get", "core.hooksPath"],
+      { encoding: "utf8" }
+    ).trim();
+    return hooksPath || null;
+  } catch {
+    return null;
+  }
 }
 
 async function readUtf8OrNull(path) {

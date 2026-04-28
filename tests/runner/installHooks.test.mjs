@@ -82,6 +82,28 @@ describe("installHooks", () => {
     expect(content.match(/^#!/gm)).toHaveLength(1);
   });
 
+  test("respects core.hooksPath when set", async () => {
+    tmpDir = await mkTmpDir();
+    const hooksDir = join(tmpDir, "custom-hooks");
+    const initResult = spawnSync("git", ["init"], {
+      cwd: tmpDir,
+      encoding: "utf8"
+    });
+    expect(initResult.status).toBe(0);
+    const configResult = spawnSync(
+      "git",
+      ["-C", tmpDir, "config", "core.hooksPath", hooksDir],
+      { encoding: "utf8" }
+    );
+    expect(configResult.status).toBe(0);
+
+    await installHooks({ root: tmpDir });
+
+    const hookPath = join(hooksDir, "pre-commit");
+    const content = await readFile(hookPath, "utf8");
+    expect(content).toContain(MANAGED_BLOCK);
+  });
+
   test("updates only an existing managed block when its content differs", () => {
     const before = [
       "#!/usr/bin/env bash",
