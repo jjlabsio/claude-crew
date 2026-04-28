@@ -71,7 +71,7 @@ describe("crew-agent-runner dispatch CLI", () => {
     const logPath = join(tmpDir, "fake-companion.log");
 
     const result = runDispatch(
-      ["--role", "planner", "--request-file", requestPath, "--json"],
+      ["--role", "dev", "--request-file", requestPath, "--json"],
       { FAKE_COMPANION_RESPONSE: "complete", FAKE_COMPANION_LOG: logPath }
     );
 
@@ -91,9 +91,24 @@ describe("crew-agent-runner dispatch CLI", () => {
     expect(call.args).toEqual(
       expect.arrayContaining(["task", "--json", "--expect-crew-result", "--prompt-file"])
     );
-    expect(call.args).not.toContain("--write");
-    expect(call.prompt).toContain("# Planner\n");
+    expect(call.args).toContain("--write");
+    expect(call.prompt).toContain("# Dev\n");
     expect(call.prompt).toContain("Implement the dispatch command.");
+  });
+
+  test("rejects claude provider roles with a dispatch-specific usage error", async () => {
+    const requestPath = await writeRequest();
+
+    const result = runDispatch(
+      ["--role", "planner", "--request-file", requestPath, "--json"],
+      { FAKE_COMPANION_RESPONSE: "complete" }
+    );
+
+    expect(result.status).toBe(2);
+    expect(result.stdout).toBe("");
+    expect(result.stderr).toContain(
+      "dispatch is for Codex provider only. Resolved provider for role 'planner' is 'claude'. Use 'render' + Agent tool for Claude provider (see crew-agent-runner SKILL.md)."
+    );
   });
 
   test("adds --write for workspace-write roles and preserves failed AgentResult on stdout", async () => {
@@ -131,6 +146,7 @@ describe("crew-agent-runner dispatch CLI", () => {
         role: "dev",
         request: requestFixture(),
         resolved: {
+          provider: "codex",
           codex_sandbox: "workspace-write",
           dispatch: { write: true, path: "codex" }
         },
@@ -170,6 +186,7 @@ describe("crew-agent-runner dispatch CLI", () => {
         role: "dev",
         request: requestFixture(),
         resolved: {
+          provider: "codex",
           codex_sandbox: "read-only",
           dispatch: { write: true, path: "codex" }
         },
@@ -194,6 +211,27 @@ describe("crew-agent-runner dispatch CLI", () => {
 
     const [call] = await readLog(logPath);
     expect(call.args).not.toContain("--write");
+  });
+
+  test("lib dispatch rejects non-codex providers before invoking companion", async () => {
+    await expect(
+      dispatch({
+        role: "planner",
+        request: requestFixture(),
+        resolved: {
+          provider: "claude",
+          codex_sandbox: "read-only",
+          dispatch: { write: false, path: "claude" }
+        },
+        contract: {
+          role: "planner",
+          capabilities: { workspaceAccess: "read-only" }
+        },
+        companionBin: resolve("tests/_helpers/fakeCompanion.mjs")
+      })
+    ).rejects.toThrow(
+      "dispatch is for Codex provider only. Resolved provider for role 'planner' is 'claude'. Use 'render' + Agent tool for Claude provider (see crew-agent-runner SKILL.md)."
+    );
   });
 
   test("uses --resume-last only when resume candidate matches requested handle", async () => {

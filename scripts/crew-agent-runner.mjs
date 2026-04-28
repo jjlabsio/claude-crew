@@ -9,7 +9,11 @@ import {
   loadUserConfig
 } from "./lib/config.mjs";
 import { parseArgv } from "./lib/cli.mjs";
-import { dispatch, DispatchError } from "./lib/dispatch.mjs";
+import {
+  dispatch,
+  DispatchError,
+  formatDispatchProviderGuardMessage
+} from "./lib/dispatch.mjs";
 import { installHooks } from "./lib/installHooks.mjs";
 import { renderFollowup } from "./lib/renderFollowup.mjs";
 import { renderPrompt } from "./lib/render.mjs";
@@ -204,7 +208,14 @@ async function dispatchCommand(flags) {
       projectConfig: loadProjectConfig(),
       contracts
     });
+    if (resolved.provider !== "codex") {
+      console.error(
+        formatDispatchProviderGuardMessage(flags.role, resolved.provider)
+      );
+      return 2;
+    }
     const request = JSON.parse(readFileSync(flags["request-file"], "utf8"));
+
     const agentResult = await dispatch({
       role: flags.role,
       request,

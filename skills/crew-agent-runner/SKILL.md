@@ -24,6 +24,7 @@ crew 업무 스킬은 에이전트 provider별 호출 세부사항을 직접 구
 ### 3a. Codex 경로
 
 `provider == codex`이면 `node scripts/crew-agent-runner.mjs dispatch --role <role> --request-file <path> --json`을 실행한다. 이 명령은 AgentResult JSON을 즉시 반환한다.
+dispatch CLI는 codex provider role에만 사용. claude provider role은 render + Agent tool 경로를 사용.
 
 ### 3b. Claude 경로
 

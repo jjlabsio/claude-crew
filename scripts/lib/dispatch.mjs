@@ -27,7 +27,21 @@ export class DispatchError extends Error {
   }
 }
 
+export function formatDispatchProviderGuardMessage(role, provider) {
+  return `dispatch is for Codex provider only. Resolved provider for role '${role}' is '${provider}'. Use 'render' + Agent tool for Claude provider (see crew-agent-runner SKILL.md).`;
+}
+
 export async function dispatch(input) {
+  if (input.resolved?.provider !== "codex") {
+    throw new DispatchError(
+      formatDispatchProviderGuardMessage(
+        input.role,
+        input.resolved?.provider ?? "unknown"
+      ),
+      { exitCode: 2 }
+    );
+  }
+
   const companion = resolveCompanion(input);
   await assertResumeCandidate(input.resumeHandle, companion);
 
