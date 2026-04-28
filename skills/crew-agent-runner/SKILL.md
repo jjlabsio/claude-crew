@@ -7,6 +7,8 @@ description: 모든 crew 에이전트 dispatch의 중앙 규약 — provider별 
 
 crew 업무 스킬은 에이전트 provider별 호출 세부사항을 직접 구현하지 않고 이 중앙 규약을 따른다. 본 스킬은 resolve, dispatch, resume, followup 주입, retry/fallback/escalate 판단의 공통 표면을 정의한다.
 
+설치 후 drift 차단용 pre-commit hook은 `node scripts/crew-agent-runner.mjs install-hooks`로 설치한다.
+
 ## Dispatch 절차
 
 업무 스킬(crew-plan/crew-interview/crew-dev)이 role을 실행해야 할 때 본 절차를 따른다.
