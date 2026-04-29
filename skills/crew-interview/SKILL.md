@@ -20,6 +20,7 @@ description: 유저 요구사항을 인터뷰하여 개발 가능한 수준의 s
 - 유저 승인 없이 crew-plan으로 전환하지 않는다.
 - 추측으로 비즈니스 결정을 채우지 않는다.
 - `git worktree add`를 직접 실행하지 않는다. 워크트리는 `EnterWorktree` 도구만 사용한다.
+- `EnterWorktree` 호출 전에 프로젝트 디렉토리에 파일이나 디렉토리를 생성하지 않는다. 워크트리 진입 전 request-file이 필요하면 OS 임시 디렉토리(`$TMPDIR`)를 사용한다.
 
 ---
 
@@ -68,11 +69,11 @@ output:
 - 최초 요구사항 체크리스트 평가
 
 role instructions:
-- PM은 요청 내용에서 키워드를 추출하여 kebab-case task-id를 생성한다.
-- PM이 task-id를 반환하면 오케스트레이터가 `EnterWorktree(name: "crew/{task-id}")`를 호출하여 Claude 워크트리를 생성하고 진입한다. 이후 모든 파일 작업은 워크트리 안에서 수행된다.
+- 오케스트레이터가 요청 내용에서 키워드를 추출하여 kebab-case task-id를 직접 생성한다 (에이전트 호출 불필요).
+- 오케스트레이터가 `EnterWorktree(name: "crew/{task-id}")`를 호출하여 Claude 워크트리를 생성하고 진입한다. 이후 모든 파일 작업은 워크트리 안에서 수행된다.
 - 오케스트레이터가 유저 원본 요청을 `.crew/plans/{task-id}/brief.md`에 저장한다.
 - Explorer는 프로젝트 구조를 병렬로 파악하고, 결과를 파일로 저장하지 않고 인터뷰 컨텍스트로만 제공한다.
-- PM은 유저 요청과 Explorer 결과를 기반으로 체크리스트 5개 항목을 첫 평가한다.
+- PM은 유저 요청과 Explorer 결과를 기반으로 체크리스트 5개 항목을 첫 평가한다 (워크트리 내부에서 실행).
 
 success gate:
 - Claude 워크트리 `crew/{task-id}`에 진입했다.
@@ -86,9 +87,11 @@ failure handling:
 
 **1b. task-id 생성 + 워크트리 진입 + brief.md 작성**
 
-1. task-id는 요청 내용에서 키워드를 추출하여 kebab-case로 생성한다.
+1. 오케스트레이터가 요청 내용에서 키워드를 추출하여 kebab-case task-id를 직접 생성한다. 에이전트 호출 없이 수행한다.
 2. `EnterWorktree(name: "crew/{task-id}")`를 호출하여 Claude 워크트리를 생성하고 진입한다. 이미 해당 워크트리 안이면 이 단계를 건너뛴다.
 3. 유저 요청 원문을 `.crew/plans/{task-id}/brief.md`에 저장한다.
+
+주의: 1~2단계에서 에이전트를 호출하거나 파일을 프로젝트 디렉토리에 생성하지 않는다. 모든 에이전트 호출(PM, Explorer)과 파일 작업은 워크트리 진입 후에 수행한다.
 
 **1c. Explorer 호출 (병렬, 워크트리 진입 후)**
 
