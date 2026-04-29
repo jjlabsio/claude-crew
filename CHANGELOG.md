@@ -1,6 +1,18 @@
 # Changelog
 
 
+## v0.1.40
+
+[compare changes](https://github.com/jjlabsio/claude-crew/compare/v0.1.39...v0.1.40)
+
+### 🩹 Fixes
+
+- **interview:** 워크트리 진입 전 메인 repo 파일 생성 방지 ([#37](https://github.com/jjlabsio/claude-crew/pull/37), [#38](https://github.com/jjlabsio/claude-crew/pull/38))
+
+### ❤️ Contributors
+
+- Jaejin Song ([@jjlabsio](https://github.com/jjlabsio))
+
 ## v0.1.39
 
 [compare changes](https://github.com/jjlabsio/claude-crew/compare/v0.1.38...v0.1.39)
