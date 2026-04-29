@@ -103,6 +103,7 @@ artifact:
 ```
 
 이 형식은 `runner.mjs render-followup`이 결정론적으로 생성한다.
+artifact가 객체/배열인 경우 runner가 JSON으로 직렬화하여 fence 블록 안에 삽입한다 (정보 손실 방지).
 
 ## Retry / Fallback / Escalate
 

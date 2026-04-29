@@ -64,6 +64,65 @@ artifact:
     expect(second).toBe(first);
     expect(sha256(second)).toBe(sha256(first));
   });
+
+  test("serializes object artifact as JSON", () => {
+    const input = {
+      previousResult: {
+        ...previousResultFixture(),
+        artifact: { path: "/x.md", lines: 10 }
+      },
+      newInput: "사용자 답변 X"
+    };
+
+    const first = renderFollowup(input);
+    const second = renderFollowup(input);
+
+    expect(first).toContain(`artifact:
+---
+{
+  "path": "/x.md",
+  "lines": 10
+}
+---`);
+    expect(first).not.toContain("[object Object]");
+    expect(second).toBe(first);
+    expect(sha256(second)).toBe(sha256(first));
+  });
+
+  test("serializes array artifact as JSON", () => {
+    const prompt = renderFollowup({
+      previousResult: {
+        ...previousResultFixture(),
+        artifact: [1, 2, 3]
+      },
+      newInput: "사용자 답변 X"
+    });
+
+    expect(prompt).toContain(`artifact:
+---
+[
+  1,
+  2,
+  3
+]
+---`);
+  });
+
+  test("preserves string artifact as-is", () => {
+    const prompt = renderFollowup({
+      previousResult: {
+        ...previousResultFixture(),
+        artifact: "line 1\nline 2"
+      },
+      newInput: "사용자 답변 X"
+    });
+
+    expect(prompt).toContain(`artifact:
+---
+line 1
+line 2
+---`);
+  });
 });
 
 describe("crew-agent-runner render-followup CLI", () => {

@@ -6,7 +6,7 @@ export function renderFollowup({ previousResult, newInput } = {}) {
     `status: ${normalizeInline(previousResult?.status)}`,
     `summary: ${normalizeInline(previousResult?.summary)}`,
     "artifact:",
-    fenceBlock(previousResult?.artifact),
+    fenceBlock(serializeArtifact(previousResult?.artifact)),
     "",
     "## 추가 입력",
     normalizeBlock(newInput),
@@ -14,6 +14,18 @@ export function renderFollowup({ previousResult, newInput } = {}) {
     "## 지시",
     "계속 진행해라."
   ].join("\n") + "\n";
+}
+
+function serializeArtifact(artifact) {
+  if (artifact === undefined || artifact === null) {
+    return "";
+  }
+
+  if (typeof artifact === "string") {
+    return artifact;
+  }
+
+  return JSON.stringify(artifact, null, 2);
 }
 
 function normalizeInline(value) {
