@@ -3,6 +3,7 @@ node_modules/
 .env*
 .DS_Store
 .omc/
+test-sandbox/
 .crew/config.json
 .crew/plans/**/.*
 .claude/
