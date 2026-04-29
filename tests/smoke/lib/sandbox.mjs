@@ -64,5 +64,29 @@ export async function setupSandbox(pluginRoot) {
     });
   }
 
+  // 5. Write .crew/config.json — ensure at least one codex agent per stage
+  //    interview: pm, plan: explorer, dev: dev (already default)
+  try {
+    const crewDir = path.join(sandboxPath, ".crew");
+    await fs.mkdir(crewDir, { recursive: true });
+    await fs.writeFile(
+      path.join(crewDir, "config.json"),
+      JSON.stringify({
+        providers: {
+          pm: { provider: "codex", model: "gpt-5.5", reasoning: "medium" },
+          techlead: { provider: "codex", model: "gpt-5.5", reasoning: "medium" },
+          planner: { provider: "codex", model: "gpt-5.5", reasoning: "medium" },
+          dev: { provider: "codex", model: "gpt-5.5", reasoning: "medium" },
+        },
+      }, null, 2) + "\n",
+    );
+  } catch (err) {
+    results.push({
+      name: "codex-config",
+      status: "FAIL",
+      reason: err.message,
+    });
+  }
+
   return results;
 }

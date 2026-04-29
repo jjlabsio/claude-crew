@@ -89,7 +89,7 @@ const SKILL_DEFS = [
 ];
 
 /**
- * Run `claude -p --dir <sandboxPath>` with the given prompt text.
+ * Run `claude -p` with cwd set to sandboxPath.
  * Returns { exitCode, stdout, stderr }.
  * On timeout, kills the process and returns exitCode "TIMEOUT".
  */
@@ -100,7 +100,8 @@ function runClaude(sandboxPath, promptText, timeoutMs) {
     let settled = false;
     let timedOut = false;
 
-    const child = spawn("claude", ["-p", "--dir", sandboxPath, promptText], {
+    const child = spawn("claude", ["-p", "--dangerously-skip-permissions", promptText], {
+      cwd: sandboxPath,
       stdio: ["ignore", "pipe", "pipe"],
       env: { ...process.env },
     });
