@@ -1,6 +1,22 @@
 # Changelog
 
 
+## v0.1.35
+
+[compare changes](https://github.com/jjlabsio/claude-crew/compare/v0.1.34...v0.1.35)
+
+### 🩹 Fixes
+
+- **runner:** Guard provider dispatch at runtime ([#33](https://github.com/jjlabsio/claude-crew/pull/33))
+
+### 🏡 Chore
+
+- .crew/ git tracked 전환 — gitignore/gitattributes 마이그레이션 ([434185d](https://github.com/jjlabsio/claude-crew/commit/434185d))
+
+### ❤️ Contributors
+
+- Jaejin Song ([@jjlabsio](https://github.com/jjlabsio))
+
 ## v0.1.34
 
 [compare changes](https://github.com/jjlabsio/claude-crew/compare/v0.1.33...v0.1.34)
