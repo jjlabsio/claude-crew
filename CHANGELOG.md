@@ -1,6 +1,18 @@
 # Changelog
 
 
+## v0.1.37
+
+[compare changes](https://github.com/jjlabsio/claude-crew/compare/v0.1.36...v0.1.37)
+
+### 🩹 Fixes
+
+- **smoke:** --dir 플래그 수정 및 sandbox 권한/codex 커버리지 추가 ([#34](https://github.com/jjlabsio/claude-crew/pull/34))
+
+### ❤️ Contributors
+
+- Jaejin Song ([@jjlabsio](https://github.com/jjlabsio))
+
 ## v0.1.36
 
 [compare changes](https://github.com/jjlabsio/claude-crew/compare/v0.1.35...v0.1.36)
