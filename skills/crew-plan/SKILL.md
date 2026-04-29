@@ -18,6 +18,7 @@ crew-interview가 생성한 spec.md를 입력으로 받아 **HOW(어떻게 만�
 - PlanEvaluator가 FAIL을 냈을 때 합리화하여 통과시키지 않는다.
 - brief.md를 Planner, PlanEvaluator에게 전달하지 않는다.
 - 오케스트레이터가 요구사항을 판단하거나 보완하지 않는다.
+- `git worktree add`를 직접 실행하지 않는다. 워크트리는 `EnterWorktree` 도구만 사용한다.
 
 ---
 
@@ -54,6 +55,27 @@ crew-plan의 모든 에이전트 실행은 역할이나 step과 무관하게 아
 
 이 순서를 생략하고 직접 하위 에이전트를 호출하지 않는다.
 provider 선택, 런타임 선택, AgentResult 반환 형식, 후속 입력 주입, retry/fallback/escalate 판단은 모두 중앙 runner 계약을 따른다.
+
+### Step 0 — 워크트리 진입
+
+role: orchestrator
+
+inputs:
+- task-id
+
+role instructions:
+- 현재 세션이 이미 `crew/{task-id}` Claude 워크트리 안인지 확인한다.
+- 워크트리 안이 아니면 `.claude/worktrees/crew/{task-id}` 경로의 워크트리가 존재하는지 확인한다.
+- 존재하면 `EnterWorktree(path: ".claude/worktrees/crew/{task-id}")`로 기존 워크트리에 진입한다.
+- 존재하지 않으면 `EnterWorktree(name: "crew/{task-id}")`로 새로 생성한다.
+
+success gate:
+- 세션이 `crew/{task-id}` Claude 워크트리 안에서 동작 중이다.
+
+failure handling:
+- 워크트리 진입 실패 시 사유를 사용자에게 제시한다.
+
+---
 
 ### Step 1 — spec.md 검증
 
@@ -247,7 +269,7 @@ output:
 
 role instructions:
 - review.md의 판정이 PASS인지 확인한다.
-- contract.md에는 목표, 수용 기준, 유저 플로우, UI 구조 및 주요 콘텐츠, 비즈니스 규칙, 가드레일, 테스트 전략, 검증 시나리오, 실행 검증, 참조 문서, 검증 이력, 워크트리, 상태를 포함한다.
+- contract.md에는 목표, 수용 기준, 유저 플로우, UI 구조 및 주요 콘텐츠, 비즈니스 규칙, 가드레일, 테스트 전략, 검증 시나리오, 실행 검증, 참조 문서, 검증 이력, 상태를 포함한다. 워크트리는 Claude 워크트리 컨벤션(`crew/{task-id}`)으로 관리되므로 contract.md에 포함하지 않는다.
 - 목표와 수용 기준은 spec.md의 내용을 기준으로 한다.
 - 가드레일은 analysis.md의 Must/Must NOT을 기준으로 한다.
 - 검증 시나리오와 실행 검증은 plan.md의 해당 섹션을 기준으로 한다.

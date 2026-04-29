@@ -19,6 +19,7 @@ description: 유저 요구사항을 인터뷰하여 개발 가능한 수준의 s
 - 체크리스트가 전부 YES가 되기 전에 spec.md를 작성하지 않는다.
 - 유저 승인 없이 crew-plan으로 전환하지 않는다.
 - 추측으로 비즈니스 결정을 채우지 않는다.
+- `git worktree add`를 직접 실행하지 않는다. 워크트리는 `EnterWorktree` 도구만 사용한다.
 
 ---
 
@@ -61,17 +62,20 @@ inputs:
 - 기존 `.crew/plans/` 상태
 
 output:
+- Claude 워크트리 `crew/{task-id}` 생성 및 진입
 - `.crew/plans/{task-id}/brief.md`
 - Explorer 프로젝트 구조 요약
 - 최초 요구사항 체크리스트 평가
 
 role instructions:
 - PM은 요청 내용에서 키워드를 추출하여 kebab-case task-id를 생성한다.
+- PM이 task-id를 반환하면 오케스트레이터가 `EnterWorktree(name: "crew/{task-id}")`를 호출하여 Claude 워크트리를 생성하고 진입한다. 이후 모든 파일 작업은 워크트리 안에서 수행된다.
 - 오케스트레이터가 유저 원본 요청을 `.crew/plans/{task-id}/brief.md`에 저장한다.
 - Explorer는 프로젝트 구조를 병렬로 파악하고, 결과를 파일로 저장하지 않고 인터뷰 컨텍스트로만 제공한다.
 - PM은 유저 요청과 Explorer 결과를 기반으로 체크리스트 5개 항목을 첫 평가한다.
 
 success gate:
+- Claude 워크트리 `crew/{task-id}`에 진입했다.
 - `brief.md`가 생성되었다.
 - Explorer 결과에 기술 스택, 주요 모듈 구조, 관련 기존 코드/기능 유무, 기존 패턴이 포함되었다.
 - 체크리스트 각 항목이 YES / NO / 해당없음 중 하나로 판정되었다.
@@ -80,12 +84,13 @@ failure handling:
 - task-id 또는 `brief.md`를 만들 수 없으면 실패 사유와 필요한 사용자 입력을 반환한다.
 - Explorer가 충분한 구조 정보를 제공하지 못하면 누락 영역을 명시하고 추가 Explorer 탐색을 요청한다.
 
-**1b. task-id 생성 + brief.md 작성**
+**1b. task-id 생성 + 워크트리 진입 + brief.md 작성**
 
-유저 요청 원문을 `.crew/plans/{task-id}/brief.md`에 저장한다.
-task-id는 요청 내용에서 키워드를 추출하여 kebab-case로 생성한다.
+1. task-id는 요청 내용에서 키워드를 추출하여 kebab-case로 생성한다.
+2. `EnterWorktree(name: "crew/{task-id}")`를 호출하여 Claude 워크트리를 생성하고 진입한다. 이미 해당 워크트리 안이면 이 단계를 건너뛴다.
+3. 유저 요청 원문을 `.crew/plans/{task-id}/brief.md`에 저장한다.
 
-**1c. Explorer 호출 (병렬)**
+**1c. Explorer 호출 (병렬, 워크트리 진입 후)**
 
 Explorer는 중앙 runner를 통해 병렬 실행되어 프로젝트 구조를 파악한다.
 
@@ -433,7 +438,7 @@ spec.md를 작성했습니다. 검토해주세요.
 | 에이전트 | role | 용도 | 실행 시점 |
 |----------|------|------|----------|
 | PM | pm | 인터뷰 판단, 질문 생성, 스코프 정리, spec.md 결정화 | Phase 1-4 |
-| Explorer | explorer | 코드베이스 탐색 | Phase 1c 필수, Phase 2d 필요 시 |
+| Explorer | explorer | 코드베이스 탐색 | Phase 1c 필수 (워크트리 진입 후), Phase 2d 필요 시 |
 | Researcher | researcher | 외부 조사 | Phase 2 중 필요 시 |
 
 모든 역할 실행, 사용자 질문 대기, 추가 에이전트 요청, 실패 처리는 중앙 `crew-agent-runner` 스킬의 상태 처리 규칙을 따른다.
@@ -447,7 +452,8 @@ spec.md를 작성했습니다. 검토해주세요.
 {
   "status": "COMPLETE",
   "task_id": "{task-id}",
-  "spec_path": ".crew/plans/{task-id}/spec.md"
+  "spec_path": ".crew/plans/{task-id}/spec.md",
+  "worktree": "crew/{task-id}"
 }
 ```
 
