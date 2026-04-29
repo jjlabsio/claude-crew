@@ -76,6 +76,38 @@ describe("validate", () => {
     );
   });
 
+  test("reports workflow skills that bypass the common runner interface", async () => {
+    tmpDir = await mkTmpDir();
+    await setupValidateRoot(tmpDir);
+    await build({ root: tmpDir });
+    await mkdir(join(tmpDir, "skills", "bad-workflow"), { recursive: true });
+    await writeFile(
+      join(tmpDir, "skills", "bad-workflow", "SKILL.md"),
+      [
+        "---",
+        "name: bad-workflow",
+        "---",
+        "",
+        "## 실행 순서",
+        "중앙 `crew-agent-runner` 스킬의 dispatch 절차로 실행한다.",
+        "",
+        "### Phase 1",
+        "Agent(subagent_type=\"dev\", prompt=\"...\")"
+      ].join("\n"),
+      "utf8"
+    );
+
+    const result = spawnValidate(tmpDir);
+
+    expect(result.status).toBe(1);
+    expect(result.stderr).toContain(
+      "skills/bad-workflow/SKILL.md: direct agent dispatch is forbidden"
+    );
+    expect(result.stderr).toContain(
+      "missing runner dispatch interface marker: ## 공통 에이전트 실행 인터페이스"
+    );
+  });
+
   test("does not modify files while validating drift", async () => {
     tmpDir = await mkTmpDir();
     await setupValidateRoot(tmpDir);

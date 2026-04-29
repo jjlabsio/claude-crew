@@ -23,6 +23,19 @@ description: contract.md를 입력으로 받아 Dev + CodeReviewer + QA 파이�
 에이전트가 사용자 입력이 필요하다고 반환하면 오케스트레이터가 사용자에게 질문한다.
 에이전트가 추가 역할 실행이나 허용 도구 실행을 요청하면 오케스트레이터가 runner 정책에 따라 처리하고 같은 역할 실행에 후속 입력으로 주입한다.
 
+## 공통 에이전트 실행 인터페이스
+
+crew-dev의 모든 에이전트 실행은 역할이나 phase와 무관하게 아래 인터페이스만 사용한다.
+오케스트레이터는 `Dev`, `CodeReviewer`, `QA`, 후속 요청 role을 실행할 때마다 이 순서를 반복한다.
+
+1. `{ role, taskId, inputs, instruction, successGate, failureHandling }` 형태의 `request-file`을 작성한다.
+2. `node "$CLAUDE_PLUGIN_ROOT/scripts/crew-agent-runner.mjs" prepare --role <role> --request-file <request-file> --json`을 실행한다.
+3. `action == dispatch`이면 prepare가 반환한 command를 실행하고 AgentResult를 처리한다.
+4. `action == agent`이면 prepare가 반환한 `subagent_type`, `model`, `prompt`로 runner 계약의 Claude 경로를 실행하고 AgentResult로 정규화한다.
+
+이 순서를 생략하고 직접 하위 에이전트를 호출하지 않는다.
+provider 선택, 런타임 선택, AgentResult 반환 형식, 후속 입력 주입, retry/fallback/escalate 판단은 모두 중앙 runner 계약을 따른다.
+
 ---
 
 ## 절대 금지

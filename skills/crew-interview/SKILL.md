@@ -36,6 +36,19 @@ description: 유저 요구사항을 인터뷰하여 개발 가능한 수준의 s
 
 에이전트 실행은 모두 중앙 `crew-agent-runner` 스킬의 dispatch 절차로 실행한다. 이 문서는 어떤 런타임을 어떻게 호출하는지가 아니라, 각 Phase가 어떤 역할에게 어떤 입력을 주고 어떤 결과를 받아야 하는지만 정의한다.
 
+## 공통 에이전트 실행 인터페이스
+
+crew-interview의 모든 에이전트 실행은 역할이나 phase와 무관하게 아래 인터페이스만 사용한다.
+오케스트레이터는 `pm`, `explorer`, `researcher`, 후속 요청 role을 실행할 때마다 이 순서를 반복한다.
+
+1. `{ role, taskId, inputs, instruction, successGate, failureHandling }` 형태의 `request-file`을 작성한다.
+2. `node "$CLAUDE_PLUGIN_ROOT/scripts/crew-agent-runner.mjs" prepare --role <role> --request-file <request-file> --json`을 실행한다.
+3. `action == dispatch`이면 prepare가 반환한 command를 실행하고 AgentResult를 처리한다.
+4. `action == agent`이면 prepare가 반환한 `subagent_type`, `model`, `prompt`로 runner 계약의 Claude 경로를 실행하고 AgentResult로 정규화한다.
+
+이 순서를 생략하고 직접 하위 에이전트를 호출하지 않는다.
+provider 선택, 런타임 선택, AgentResult 반환 형식, 후속 입력 주입, retry/fallback/escalate 판단은 모두 중앙 runner 계약을 따른다.
+
 ### Phase 1 — 초기화
 
 중앙 `crew-agent-runner` 스킬의 dispatch 절차로 실행한다.

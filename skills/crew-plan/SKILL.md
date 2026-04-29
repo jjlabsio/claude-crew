@@ -42,6 +42,19 @@ crew-interview가 생성한 spec.md를 입력으로 받아 **HOW(어떻게 만�
 
 각 에이전트 단계는 중앙 `crew-agent-runner` 스킬의 dispatch 절차로 실행한다. 이 문서는 역할, 입력, 기대 산출물, 검증 기준만 정의하며 실행 방식은 runner 계약을 따른다.
 
+## 공통 에이전트 실행 인터페이스
+
+crew-plan의 모든 에이전트 실행은 역할이나 step과 무관하게 아래 인터페이스만 사용한다.
+오케스트레이터는 `techlead`, `planner`, `plan-evaluator`, 후속 요청 role을 실행할 때마다 이 순서를 반복한다.
+
+1. `{ role, taskId, inputs, instruction, successGate, failureHandling }` 형태의 `request-file`을 작성한다.
+2. `node "$CLAUDE_PLUGIN_ROOT/scripts/crew-agent-runner.mjs" prepare --role <role> --request-file <request-file> --json`을 실행한다.
+3. `action == dispatch`이면 prepare가 반환한 command를 실행하고 AgentResult를 처리한다.
+4. `action == agent`이면 prepare가 반환한 `subagent_type`, `model`, `prompt`로 runner 계약의 Claude 경로를 실행하고 AgentResult로 정규화한다.
+
+이 순서를 생략하고 직접 하위 에이전트를 호출하지 않는다.
+provider 선택, 런타임 선택, AgentResult 반환 형식, 후속 입력 주입, retry/fallback/escalate 판단은 모두 중앙 runner 계약을 따른다.
+
 ### Step 1 — spec.md 검증
 
 role: orchestrator
