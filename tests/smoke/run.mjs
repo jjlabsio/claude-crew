@@ -33,12 +33,19 @@ async function main() {
   const sandboxResults = await setupSandbox(PLUGIN_ROOT);
   results.push(...sandboxResults);
 
-  const runnerResults = await checkRunner(PLUGIN_ROOT);
-  results.push(...runnerResults);
+  const sandboxFailed = sandboxResults.some((r) => r.status === "FAIL");
 
-  const sandboxPath = path.join(PLUGIN_ROOT, "test-sandbox");
-  const skillResults = await runSkills(sandboxPath, PLUGIN_ROOT);
-  results.push(...skillResults);
+  if (sandboxFailed) {
+    results.push({ name: "runner-check", status: "SKIP", reason: "sandbox setup failed" });
+    results.push({ name: "skills", status: "SKIP", reason: "sandbox setup failed" });
+  } else {
+    const runnerResults = await checkRunner(PLUGIN_ROOT);
+    results.push(...runnerResults);
+
+    const sandboxPath = path.join(PLUGIN_ROOT, "test-sandbox");
+    const skillResults = await runSkills(sandboxPath, PLUGIN_ROOT);
+    results.push(...skillResults);
+  }
 
   printReport(results);
 
