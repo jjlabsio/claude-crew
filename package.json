@@ -28,6 +28,7 @@
     "LICENSE"
   ],
   "scripts": {
+    "smoke": "node tests/smoke/run.mjs",
     "test": "vitest",
     "test:run": "vitest run",
     "test:watch": "vitest"
