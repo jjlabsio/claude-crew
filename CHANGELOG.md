@@ -1,6 +1,18 @@
 # Changelog
 
 
+## v0.1.39
+
+[compare changes](https://github.com/jjlabsio/claude-crew/compare/v0.1.38...v0.1.39)
+
+### 🚀 Enhancements
+
+- **catalog:** Codex 신규 모델 추가 및 crew-setup 권장 설정 옵션 ([#36](https://github.com/jjlabsio/claude-crew/pull/36))
+
+### ❤️ Contributors
+
+- Jaejin Song ([@jjlabsio](https://github.com/jjlabsio))
+
 ## v0.1.38
 
 [compare changes](https://github.com/jjlabsio/claude-crew/compare/v0.1.37...v0.1.38)
