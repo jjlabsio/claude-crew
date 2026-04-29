@@ -47,7 +47,7 @@ const SKILL_DEFS = [
         sections: ["목표", "수용 기준"],
       },
     ],
-    dependsOn: [],
+    dependsOn: ["crew-setup"],
   },
   {
     name: "crew-plan",

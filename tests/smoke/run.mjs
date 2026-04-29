@@ -23,6 +23,21 @@ async function guardDevEnvironment() {
     );
     process.exit(1);
   }
+
+  try {
+    const pkg = JSON.parse(
+      await fs.readFile(path.join(PLUGIN_ROOT, "package.json"), "utf8"),
+    );
+    if (pkg.name !== "@jjlabsio/claude-crew") {
+      console.error(
+        `This script must be run from the claude-crew plugin root (package.json name is "${pkg.name}", expected "@jjlabsio/claude-crew")`,
+      );
+      process.exit(1);
+    }
+  } catch {
+    console.error("Failed to read package.json");
+    process.exit(1);
+  }
 }
 
 async function main() {

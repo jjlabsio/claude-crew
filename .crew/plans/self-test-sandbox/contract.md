@@ -87,4 +87,4 @@ None — smoke 스크립트 자체가 E2E 검증 도구. 별도 단위 테스트
 worktree-feat-self-test-sandbox
 
 ## 상태
-IN_PROGRESS
+DONE
