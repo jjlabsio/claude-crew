@@ -86,6 +86,28 @@ Claude Code에서:
 | **CodeReviewer** | 코드 리뷰 | dev |
 | **QA** | 실행 검증 | dev |
 
+## 두 가지 사용 모드
+
+claude-crew는 **다른 프로젝트에 설치되어 사용되는 플러그인**이다. 두 가지 모드로 구분된다.
+
+### 사용자 모드
+
+이 plugin을 자기 프로젝트에 설치해서 SaaS 개발에 활용하는 일반 사용자.
+
+- 직접 호출하는 슬래시 명령: `/crew`, `/crew-setup`, `/task`, `/tasks`, `/crew-interview`, `/crew-plan`, `/crew-dev`.
+- 디버그용 직접 호출 가능 명령: `node scripts/crew-agent-runner.mjs resolve --role <role> --json` (provider/model/contract 통합 표 확인).
+- plugin이 설치된 위치(`~/.claude/plugins/...` 등)에 무관하게 동작 — plugin script가 자기 위치를 자동으로 인식.
+
+### 개발자 모드
+
+claude-crew 자체를 개발하는 사람 (이 repo 안에서 작업).
+
+- `node scripts/crew-agent-runner.mjs build`: contracts/instructions에서 `agents/{role}.md` + `plugin.json` agents 배열 derive.
+- `node scripts/crew-agent-runner.mjs validate`: build 결과와 현재 파일 정합성 검사 + sandbox 정합성 검증.
+- `node scripts/crew-agent-runner.mjs install-hooks`: pre-commit hook 설치 (drift 차단).
+
+위 세 명령은 **plugin source repo 안에서만 동작**한다. 사용자 환경에서 호출하면 가드로 차단된다 (`.claude-plugin/plugin.json` + `package.json.name === "@jjlabsio/claude-crew"` 감지). 사용자에게는 의미 없는 명령이므로 정상이다.
+
 ## 모델 설정
 
 `/crew-setup`에서 에이전트별 provider/model을 설정합니다. 설정하지 않은 에이전트는 `data/provider-catalog.json`의 `agent_defaults`를 따릅니다.
