@@ -52,6 +52,12 @@ function validateCrewAgentRunnerSkill(text) {
   expect(text, "Codex resume must not instruct direct companion execution").not.toContain(
     "`node scripts/crew-codex-companion.mjs task --resume-last"
   );
+  expect(text, "prepare command must be the workflow entrypoint").toContain(
+    "prepare --role <role> --request-file <request-file> --json"
+  );
+  expect(text, "workflow skills must only execute prepare action").toContain(
+    "항상 prepare 결과의 action만 수행한다"
+  );
   expect(text, "companion does not accept explicit thread ids").not.toMatch(
     /--resume\s+<thread-id>/
   );

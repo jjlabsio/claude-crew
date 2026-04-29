@@ -7,7 +7,8 @@ export function renderPrompt(input) {
     section("Outputs", renderJson(contract.outputs)),
     section("Instructions", request.instruction, { required: true }),
     section("Success Gate", request.successGate),
-    section("Failure Handling", request.failureHandling)
+    section("Failure Handling", request.failureHandling),
+    section("AgentResult Contract", renderAgentResultContract())
   ].filter(Boolean);
 
   return `${parts.join("\n\n")}\n`;
@@ -70,6 +71,33 @@ function renderJson(value) {
   }
 
   return JSON.stringify(value, null, 2);
+}
+
+function renderAgentResultContract() {
+  return [
+    "Return exactly one final AgentResult JSON object wrapped in these tags:",
+    "",
+    "```text",
+    "<crew-agent-result>",
+    "{",
+    '  "status": "complete | blocked_on_user | needs_agent | needs_tool | failed",',
+    '  "artifact": null,',
+    '  "questions": [],',
+    '  "requests": [],',
+    '  "summary": "short summary",',
+    '  "error": null',
+    "}",
+    "</crew-agent-result>",
+    "```",
+    "",
+    "Rules:",
+    "- The wrapper tags are mandatory.",
+    "- The JSON inside the tags must be valid JSON.",
+    "- Use complete when the requested artifact is ready.",
+    "- Use blocked_on_user only with a non-empty questions array.",
+    "- Use needs_agent or needs_tool only with a non-empty requests array.",
+    "- Use failed with an error string when the task cannot continue."
+  ].join("\n");
 }
 
 function normalizeBody(body) {

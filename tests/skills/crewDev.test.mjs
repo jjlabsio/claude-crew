@@ -3,6 +3,8 @@ import { join } from "node:path";
 
 import { describe, expect, test } from "vitest";
 
+import { validateWorkflowSkillDispatchContract } from "../../scripts/lib/skillDispatchContract.mjs";
+
 const SKILL_PATH = join(process.cwd(), "skills", "crew-dev", "SKILL.md");
 
 const FORBIDDEN_PATTERNS = [
@@ -48,6 +50,8 @@ const REQUIRED_FLOW_MARKERS = [
 ];
 
 function validateCrewDevSkill(text) {
+  expect(validateWorkflowSkillDispatchContract(text, SKILL_PATH)).toEqual([]);
+
   for (const pattern of FORBIDDEN_PATTERNS) {
     expect(text, `${pattern} must not appear`).not.toMatch(pattern);
   }
@@ -145,6 +149,11 @@ describe("crew-dev skill", () => {
       ["run", "Agent("].join("")
     ].join("\n");
 
-    expect(() => validateCrewDevSkill(fixture)).toThrow(/must not appear/);
+    expect(validateWorkflowSkillDispatchContract(fixture, SKILL_PATH)).toEqual(
+      expect.arrayContaining([
+        expect.stringMatching(/direct agent dispatch is forbidden/)
+      ])
+    );
+    expect(() => validateCrewDevSkill(fixture)).toThrow();
   });
 });

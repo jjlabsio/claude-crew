@@ -3,6 +3,7 @@ import { join, relative, resolve } from "node:path";
 
 import { deriveBuildOutput, resolveBuildInputs } from "./build.mjs";
 import { loadContracts } from "./contracts.mjs";
+import { validateWorkflowSkillDispatchContracts } from "./skillDispatchContract.mjs";
 
 export async function validate({ root = process.cwd() } = {}) {
   const projectRoot = resolve(root);
@@ -26,6 +27,9 @@ export async function validate({ root = process.cwd() } = {}) {
     }))
   );
   errors.push(...compareSandboxConsistency({ contracts, catalog }));
+  errors.push(
+    ...(await validateWorkflowSkillDispatchContracts({ root: projectRoot }))
+  );
 
   return { ok: errors.length === 0, errors };
 }

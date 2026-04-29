@@ -10,6 +10,10 @@
 import { readFileSync, readdirSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 
+import { loadCatalog, loadProjectConfig, loadUserConfig } from '../scripts/lib/config.mjs';
+import { loadContracts } from '../scripts/lib/contracts.mjs';
+import { resolveRole } from '../scripts/lib/resolve.mjs';
+
 // ---------------------------------------------------------------------------
 // Read stdin
 // ---------------------------------------------------------------------------
@@ -52,6 +56,30 @@ function loadAgentDefinitions(pluginRoot) {
   return defs;
 }
 
+function resolveCrewRoleProvider(role) {
+  return resolveRole({
+    role,
+    catalog: loadCatalog(),
+    userConfig: loadUserConfig(),
+    projectConfig: loadProjectConfig(),
+    contracts: loadContracts()
+  });
+}
+
+function blockCodexAgentCall(role, resolved) {
+  return {
+    continue: true,
+    decision: 'block',
+    reason: [
+      `Role '${role}' is configured for Codex provider and cannot be called with the Agent tool.`,
+      'Use the central runner prepare/dispatch path instead:',
+      `node "$CLAUDE_PLUGIN_ROOT/scripts/crew-agent-runner.mjs" prepare --role ${role} --request-file <request-file> --json`,
+      `node "$CLAUDE_PLUGIN_ROOT/scripts/crew-agent-runner.mjs" dispatch --role ${role} --request-file <request-file> --json`,
+      `Resolved model: ${resolved.model}${resolved.reasoning ? ` / ${resolved.reasoning}` : ''}`
+    ].join('\n')
+  };
+}
+
 // ---------------------------------------------------------------------------
 // Main
 // ---------------------------------------------------------------------------
@@ -86,6 +114,29 @@ async function main() {
 
   // Canonicalize subagent_type (strip plugin prefix if present)
   const rawType = input.subagent_type.replace(/^claude-crew:/, '');
+  let resolved = null;
+  try {
+    resolved = resolveCrewRoleProvider(rawType);
+  } catch {
+    resolved = null;
+  }
+
+  if (resolved?.provider === 'codex') {
+    console.log(JSON.stringify(blockCodexAgentCall(rawType, resolved)));
+    return;
+  }
+
+  if (resolved?.provider === 'claude' && !input.model && resolved.model) {
+    console.log(JSON.stringify({
+      continue: true,
+      modifiedInput: { ...input, model: resolved.model },
+      hookSpecificOutput: {
+        hookEventName: 'PreToolUse',
+        additionalContext: `model 자동 주입: ${rawType} → ${resolved.model}`,
+      },
+    }));
+    return;
+  }
 
   // Load agent definitions and auto-inject model if missing
   const pluginRoot = process.env.CLAUDE_PLUGIN_ROOT || dirname(import.meta.url.replace('file://', '')).replace('/hooks', '');

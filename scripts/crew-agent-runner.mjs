@@ -15,6 +15,7 @@ import {
   formatDispatchProviderGuardMessage
 } from "./lib/dispatch.mjs";
 import { installHooks } from "./lib/installHooks.mjs";
+import { prepareDispatch } from "./lib/prepare.mjs";
 import { renderFollowup } from "./lib/renderFollowup.mjs";
 import { renderPrompt } from "./lib/render.mjs";
 import { resolveRole } from "./lib/resolve.mjs";
@@ -31,6 +32,10 @@ async function main(argv) {
 
   if (command === "render") {
     return renderCommand(flags);
+  }
+
+  if (command === "prepare") {
+    return prepareCommand(flags);
   }
 
   if (command === "dispatch") {
@@ -76,6 +81,49 @@ async function main(argv) {
       process.stdout.write(`${JSON.stringify(value, null, 2)}\n`);
     } else {
       process.stdout.write(formatTable(value));
+    }
+    return 0;
+  } catch (error) {
+    console.error(error.message);
+    return 1;
+  }
+}
+
+function prepareCommand(flags) {
+  if (typeof flags.role !== "string" || flags.role.length === 0) {
+    console.error("Missing required --role <name>");
+    return 1;
+  }
+
+  if (
+    typeof flags["request-file"] !== "string" ||
+    flags["request-file"].length === 0
+  ) {
+    console.error("Missing required --request-file <path>");
+    return 1;
+  }
+
+  try {
+    const contracts = loadContracts();
+    const resolved = resolveRole({
+      role: flags.role,
+      catalog: loadCatalog(),
+      userConfig: loadUserConfig(),
+      projectConfig: loadProjectConfig(),
+      contracts
+    });
+    const request = JSON.parse(readFileSync(flags["request-file"], "utf8"));
+    const prepared = prepareDispatch({
+      role: flags.role,
+      requestFile: flags["request-file"],
+      request,
+      resolved
+    });
+
+    if (flags.json) {
+      process.stdout.write(`${JSON.stringify(prepared, null, 2)}\n`);
+    } else {
+      process.stdout.write(formatPrepared(prepared));
     }
     return 0;
   } catch (error) {
@@ -292,6 +340,14 @@ function formatTable(value) {
     .join("\n")}\n`;
 }
 
+function formatPrepared(value) {
+  if (value.action === "dispatch") {
+    return `${value.command.join(" ")}\n`;
+  }
+
+  return value.prompt;
+}
+
 function findContract(role, contracts) {
   return contracts.roles.find((contract) => contract.role === role);
 }
@@ -310,6 +366,9 @@ function usage() {
   console.error("       crew-agent-runner build [--root <path>]");
   console.error("       crew-agent-runner validate [--root <path>]");
   console.error("       crew-agent-runner install-hooks [--root <path>]");
+  console.error(
+    "       crew-agent-runner prepare --role <name> --request-file <path> [--json]"
+  );
   console.error("       crew-agent-runner render --role <name> --request-file <path>");
   console.error(
     "       crew-agent-runner render-followup --previous-result <file> --new-input <file>"

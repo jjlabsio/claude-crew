@@ -5,7 +5,7 @@ description: 모든 crew 에이전트 dispatch의 중앙 규약 — provider별 
 
 # crew-agent-runner
 
-crew 업무 스킬은 에이전트 provider별 호출 세부사항을 직접 구현하지 않고 이 중앙 규약을 따른다. 본 스킬은 resolve, dispatch, resume, followup 주입, retry/fallback/escalate 판단의 공통 표면을 정의한다.
+crew 업무 스킬은 에이전트 provider별 호출 세부사항을 직접 구현하지 않고 이 중앙 규약을 따른다. 본 스킬은 prepare, resolve, dispatch, resume, followup 주입, retry/fallback/escalate 판단의 공통 표면을 정의한다.
 
 설치 후 drift 차단용 pre-commit hook은 `node scripts/crew-agent-runner.mjs install-hooks`로 설치한다.
 (plugin 개발자 전용 — 사용자는 호출하지 않습니다. build/validate는 plugin source repo의 drift 차단 도구입니다.)
@@ -14,26 +14,24 @@ crew 업무 스킬은 에이전트 provider별 호출 세부사항을 직접 구
 
 업무 스킬(crew-plan/crew-interview/crew-dev)이 role을 실행해야 할 때 본 절차를 따른다.
 
-### 1. resolve
-
-오케스트레이터는 먼저 `node scripts/crew-agent-runner.mjs resolve --role <role> --json`을 실행하여 provider/model/contract 통합 표를 받는다.
-
-### 2. request 객체 작성
+### 1. request 객체 작성
 
 `{ role, inputs (path+content), instruction, successGate, failureHandling, taskId }` 형태의 임시 JSON 파일을 작성한다.
 
-### 3a. Codex 경로
+### 2. prepare
 
-`provider == codex`이면 `node scripts/crew-agent-runner.mjs dispatch --role <role> --request-file <path> --json`을 실행한다. 이 명령은 AgentResult JSON을 즉시 반환한다.
-dispatch CLI는 codex provider role에만 사용. claude provider role은 render + Agent tool 경로를 사용.
+오케스트레이터는 `node "$CLAUDE_PLUGIN_ROOT/scripts/crew-agent-runner.mjs" prepare --role <role> --request-file <request-file> --json`을 실행한다.
+prepare는 provider/model/contract를 해석하고 다음 action 중 하나를 반환한다.
 
-### 3b. Claude 경로
+### 3a. dispatch action
 
-`provider == claude`이면 다음 순서로 실행한다.
+`action == dispatch`이면 prepare가 반환한 command를 실행한다. 이 경로는 Codex provider role에만 사용하며 AgentResult JSON을 즉시 반환한다.
 
-1. `node scripts/crew-agent-runner.mjs render --role <role> --request-file <path>`를 실행하여 prompt 문자열을 받는다.
-2. 메인 오케스트레이터(Claude conversation)가 `Agent(subagent_type=<role>, model=<model>, prompt=<rendered>)`를 호출한다.
-3. sub-agent 결과를 AgentResult JSON 형식으로 정규화한다.
+### 3b. agent action
+
+`action == agent`이면 prepare가 반환한 `subagent_type`, `model`, `prompt`로 메인 오케스트레이터가 Claude provider 역할을 실행하고, sub-agent 결과를 AgentResult JSON 형식으로 정규화한다.
+
+주의: 업무 스킬은 직접 provider를 분기하거나 직접 하위 에이전트를 호출하지 않는다. 항상 prepare 결과의 action만 수행한다.
 
 ## AgentResult 상태 처리
 
