@@ -192,11 +192,33 @@ Step 3a에서 판별된 config 경로의 파일이 있으면 현재 설정을 �
 
 ```
 설정을 변경할 에이전트를 선택하세요 (쉼표 구분, 엔터 = 스킵):
+  0. 권장 설정 전체 적용 (agent_defaults 기준)
   <data/agent-contracts.json의 role 목록을 contract 순서로 쉼표 구분 표시>
 ```
 
 - 사용자가 엔터만 누르거나 "없음"/"스킵"을 입력하면 Step 3를 종료한다.
 - 예시 입력: `planner`, `dev, code-reviewer`
+- `0` 또는 `권장` 입력 시 → Step 3f-1으로 이동한다.
+
+### 3f-1. 권장 설정 일괄 적용
+
+`provider-catalog.json`의 `agent_defaults`를 전 에이전트에 일괄 적용한다.
+
+**기존 커스텀 설정이 있는 경우 경고:**
+
+```
+⚠️  기존 커스텀 설정이 있습니다:
+  - planner: codex / gpt-5.4 high → codex / gpt-5.5 medium (덮어씀)
+  ...
+권장 설정으로 덮어씌우시겠습니까? (y/N):
+```
+
+- `y` 입력 시: 모든 에이전트를 `agent_defaults` 값으로 저장하고 Step 3h로 이동한다.
+- 그 외 입력 시: 취소하고 Step 3f로 돌아간다.
+
+**기존 커스텀 설정이 없는 경우:** 경고 없이 바로 적용하고 Step 3h로 이동한다.
+
+> **저장 규칙**: `agent_defaults`와 동일한 값은 저장하지 않는다 (3h 규칙 동일). 결과적으로 기존 커스텀 항목만 삭제되고 `providers` 객체는 비거나 빈 상태가 될 수 있다.
 
 ### 3g. 선택된 에이전트별 설정
 
