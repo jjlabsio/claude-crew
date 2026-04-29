@@ -2,10 +2,15 @@ import { existsSync, readFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { join, resolve } from "node:path";
 
-const DEFAULT_CATALOG_PATH = "data/provider-catalog.json";
+import { pluginPath } from "./pluginRoot.mjs";
 
-export function loadCatalog(filePath = DEFAULT_CATALOG_PATH) {
-  return readJson(resolve(process.cwd(), filePath), true);
+export function loadCatalog(filePath) {
+  return readJson(
+    filePath === undefined
+      ? pluginPath("data", "provider-catalog.json")
+      : resolve(process.cwd(), filePath),
+    true
+  );
 }
 
 export function loadUserConfig(filePath = join(homedir(), ".claude", "crew", "config.json")) {

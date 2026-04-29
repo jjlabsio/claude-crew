@@ -17,6 +17,14 @@ const BASH_SHEBANG = "#!/usr/bin/env bash";
 
 export async function installHooks({ root = process.cwd() } = {}) {
   const projectRoot = resolve(root);
+  if (!(await isPluginSourceRepo(projectRoot))) {
+    throw new Error(
+      "install-hooks is for claude-crew plugin developers only. " +
+        "End users do not need this command (build/validate are dev tools). " +
+        "If you are developing claude-crew, run from the plugin source repo root."
+    );
+  }
+
   const hooksDir = await resolveHooksDir(projectRoot);
   const hookPath = join(hooksDir, "pre-commit");
   await mkdir(hooksDir, { recursive: true });
@@ -31,6 +39,23 @@ export async function installHooks({ root = process.cwd() } = {}) {
   await chmod(hookPath, 0o755);
 
   return { hookPath };
+}
+
+async function isPluginSourceRepo(root) {
+  try {
+    const pluginJsonPath = join(root, ".claude-plugin", "plugin.json");
+    const packageJsonPath = join(root, "package.json");
+    const pluginJsonStat = await stat(pluginJsonPath);
+    const packageJsonStat = await stat(packageJsonPath);
+    if (!pluginJsonStat.isFile() || !packageJsonStat.isFile()) {
+      return false;
+    }
+
+    const pkg = JSON.parse(await readFile(packageJsonPath, "utf8"));
+    return pkg.name === "@jjlabsio/claude-crew";
+  } catch {
+    return false;
+  }
 }
 
 export function ensureShebang(content) {

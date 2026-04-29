@@ -37,6 +37,7 @@ afterEach(async () => {
 describe("installHooks", () => {
   test("creates a missing pre-commit hook with managed validate block and executable mode", async () => {
     tmpDir = await mkTmpDir();
+    await setupPluginSourceRoot(tmpDir);
     await mkdir(join(tmpDir, ".git"), { recursive: true });
 
     await installHooks({ root: tmpDir });
@@ -52,6 +53,7 @@ describe("installHooks", () => {
 
   test("preserves existing hook content, appends once, and stays idempotent", async () => {
     tmpDir = await mkTmpDir();
+    await setupPluginSourceRoot(tmpDir);
     const hookPath = join(tmpDir, ".git", "hooks", "pre-commit");
     await mkdir(dirname(hookPath), { recursive: true });
     const existing = "#!/usr/bin/env bash\necho existing\n";
@@ -69,6 +71,7 @@ describe("installHooks", () => {
 
   test("adds a shebang when an existing pre-commit hook is missing one", async () => {
     tmpDir = await mkTmpDir();
+    await setupPluginSourceRoot(tmpDir);
     const hookPath = join(tmpDir, ".git", "hooks", "pre-commit");
     await mkdir(dirname(hookPath), { recursive: true });
     const existing = "echo existing\n";
@@ -84,6 +87,7 @@ describe("installHooks", () => {
 
   test("respects core.hooksPath when set", async () => {
     tmpDir = await mkTmpDir();
+    await setupPluginSourceRoot(tmpDir);
     const hooksDir = join(tmpDir, "custom-hooks");
     const initResult = spawnSync("git", ["init"], {
       cwd: tmpDir,
@@ -147,6 +151,7 @@ describe("installHooks", () => {
 
   test("installs through the CLI", async () => {
     tmpDir = await mkTmpDir();
+    await setupPluginSourceRoot(tmpDir);
     await mkdir(join(tmpDir, ".git"), { recursive: true });
 
     const result = spawnSync(
@@ -159,6 +164,48 @@ describe("installHooks", () => {
     expect(await readFile(join(tmpDir, ".git", "hooks", "pre-commit"), "utf8"))
       .toContain(MANAGED_BLOCK);
   });
+
+  test("rejects when not plugin source repo", async () => {
+    tmpDir = await mkTmpDir();
+    await mkdir(join(tmpDir, ".claude-plugin"), { recursive: true });
+    await writeFile(
+      join(tmpDir, ".claude-plugin", "plugin.json"),
+      "{}\n",
+      "utf8"
+    );
+    await writeFile(
+      join(tmpDir, "package.json"),
+      `${JSON.stringify({ name: "other" }, null, 2)}\n`,
+      "utf8"
+    );
+
+    await expect(installHooks({ root: tmpDir })).rejects.toThrow(
+      /install-hooks is for claude-crew plugin developers only/
+    );
+  });
+
+  test("CLI rejects when not plugin source repo", async () => {
+    tmpDir = await mkTmpDir();
+
+    const result = spawnSync(
+      process.execPath,
+      ["scripts/crew-agent-runner.mjs", "install-hooks", "--root", tmpDir],
+      { cwd: REPO_ROOT, encoding: "utf8" }
+    );
+
+    expect(result.status).toBe(1);
+    expect(result.stderr).toContain(
+      "install-hooks is for claude-crew plugin developers only"
+    );
+  });
+
+  test("rejects when no .claude-plugin/plugin.json", async () => {
+    tmpDir = await mkTmpDir();
+
+    await expect(installHooks({ root: tmpDir })).rejects.toThrow(
+      /install-hooks is for claude-crew plugin developers only/
+    );
+  });
 });
 
 async function linkRunnerScripts(root) {
@@ -169,6 +216,20 @@ async function linkRunnerScripts(root) {
     join(scriptsDir, "crew-agent-runner.mjs")
   );
   await symlink(join(REPO_ROOT, "scripts", "lib"), join(scriptsDir, "lib"));
+}
+
+async function setupPluginSourceRoot(root) {
+  await mkdir(join(root, ".claude-plugin"), { recursive: true });
+  await writeFile(
+    join(root, ".claude-plugin", "plugin.json"),
+    `${JSON.stringify({ name: "fixture-plugin" }, null, 2)}\n`,
+    "utf8"
+  );
+  await writeFile(
+    join(root, "package.json"),
+    `${JSON.stringify({ name: "@jjlabsio/claude-crew" }, null, 2)}\n`,
+    "utf8"
+  );
 }
 
 async function setupValidateRoot(root) {
@@ -246,6 +307,11 @@ async function setupValidateRoot(root) {
       null,
       2
     )}\n`,
+    "utf8"
+  );
+  await writeFile(
+    join(root, "package.json"),
+    `${JSON.stringify({ name: "@jjlabsio/claude-crew" }, null, 2)}\n`,
     "utf8"
   );
 

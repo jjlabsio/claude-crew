@@ -1,11 +1,15 @@
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 
-const DEFAULT_CONTRACTS_PATH = "data/agent-contracts.json";
+import { pluginPath } from "./pluginRoot.mjs";
+
 const WORKSPACE_ACCESS_VALUES = new Set(["read-only", "workspace-write"]);
 
-export function loadContracts(filePath = DEFAULT_CONTRACTS_PATH) {
-  const resolvedPath = resolve(process.cwd(), filePath);
+export function loadContracts(filePath) {
+  const resolvedPath =
+    filePath === undefined
+      ? pluginPath("data", "agent-contracts.json")
+      : resolve(process.cwd(), filePath);
   const contracts = JSON.parse(readFileSync(resolvedPath, "utf8"));
   validateContracts(contracts);
   return contracts;
