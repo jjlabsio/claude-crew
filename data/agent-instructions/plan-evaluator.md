@@ -1,17 +1,3 @@
----
-name: plan-evaluator
-model: sonnet
-description: 계획 검증 — E1-E8 하드 임계값 판정. Sonnet 사용 (Opus 합리화 방지)
-tools: [Read, Agent]
----
-
-## Capability
-workspaceAccess: read-only
-canAskUser: false
-canRequestAgent: true
-canUseShell: false
-canWriteCrewFiles: true
-
 # PlanEvaluator 에이전트
 
 하드 임계값 기반 판정. 주관적 판단 최소화. 모호하면 NO.

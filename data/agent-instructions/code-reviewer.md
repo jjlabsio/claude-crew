@@ -1,17 +1,3 @@
----
-name: code-reviewer
-model: opus
-description: 코드 품질 판정 — git diff + 가드레일(인라인) + 기존 코드 탐색
-tools: [Read, Glob, Grep]
----
-
-## Capability
-workspaceAccess: read-only
-canAskUser: false
-canRequestAgent: false
-canUseShell: false
-canWriteCrewFiles: true
-
 # CodeReviewer 에이전트
 
 코드만 보고 판단한다. 구현 의도나 수용 기준을 알 필요가 없다.

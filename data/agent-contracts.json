@@ -1,0 +1,350 @@
+{
+  "version": 1,
+  "roles": [
+    {
+      "role": "pm",
+      "inputs": {
+        "allowed": [
+          ".crew/plans/{task-id}/brief.md"
+        ],
+        "denied": []
+      },
+      "outputs": [
+        {
+          "type": "artifact",
+          "target": ".crew/plans/{task-id}/spec.md"
+        }
+      ],
+      "capabilities": {
+        "workspaceAccess": "read-only"
+      },
+      "policy": {
+        "maxAttempts": 1,
+        "fallbackProvider": null,
+        "escalateAfterAttempts": 1,
+        "consecutiveSameFailureLimit": 1
+      },
+      "claudeSubagent": {
+        "name": "pm",
+        "model": "opus",
+        "description": "유저 인터뷰를 통해 요구사항을 확정하고 spec.md를 작성한다",
+        "tools": [
+          "AskUserQuestion",
+          "Read",
+          "Write"
+        ]
+      }
+    },
+    {
+      "role": "techlead",
+      "inputs": {
+        "allowed": [
+          ".crew/plans/{task-id}/spec.md"
+        ],
+        "denied": [
+          ".crew/plans/{task-id}/brief.md"
+        ]
+      },
+      "outputs": [
+        {
+          "type": "artifact",
+          "target": ".crew/plans/{task-id}/analysis.md"
+        }
+      ],
+      "capabilities": {
+        "workspaceAccess": "read-only"
+      },
+      "policy": {
+        "maxAttempts": 1,
+        "fallbackProvider": null,
+        "escalateAfterAttempts": 1,
+        "consecutiveSameFailureLimit": 1
+      },
+      "claudeSubagent": {
+        "name": "techlead",
+        "model": "opus",
+        "description": "사전 분석, 아키텍처 방향 판단, 가드레일 정의. Explorer/Researcher 서브에이전트를 호출한다",
+        "tools": [
+          "AskUserQuestion",
+          "Read",
+          "Agent"
+        ]
+      }
+    },
+    {
+      "role": "planner",
+      "inputs": {
+        "allowed": [
+          ".crew/plans/{task-id}/spec.md",
+          ".crew/plans/{task-id}/analysis.md",
+          ".crew/plans/{task-id}/review-{n}.md"
+        ],
+        "denied": [
+          ".crew/plans/{task-id}/brief.md"
+        ]
+      },
+      "outputs": [
+        {
+          "type": "artifact",
+          "target": ".crew/plans/{task-id}/plan.md"
+        }
+      ],
+      "capabilities": {
+        "workspaceAccess": "read-only"
+      },
+      "policy": {
+        "maxAttempts": 5,
+        "fallbackProvider": null,
+        "escalateAfterAttempts": 5,
+        "consecutiveSameFailureLimit": 3
+      },
+      "claudeSubagent": {
+        "name": "planner",
+        "model": "opus",
+        "description": "analysis.md 기반으로 구현 계획(plan.md)을 작성한다",
+        "tools": [
+          "Read",
+          "Write",
+          "Agent"
+        ]
+      }
+    },
+    {
+      "role": "plan-evaluator",
+      "inputs": {
+        "allowed": [
+          ".crew/plans/{task-id}/spec.md",
+          ".crew/plans/{task-id}/analysis.md",
+          ".crew/plans/{task-id}/plan.md"
+        ],
+        "denied": [
+          ".crew/plans/{task-id}/brief.md"
+        ]
+      },
+      "outputs": [
+        {
+          "type": "artifact",
+          "target": ".crew/plans/{task-id}/review.md"
+        }
+      ],
+      "capabilities": {
+        "workspaceAccess": "read-only"
+      },
+      "policy": {
+        "maxAttempts": 1,
+        "fallbackProvider": null,
+        "escalateAfterAttempts": 1,
+        "consecutiveSameFailureLimit": 1
+      },
+      "claudeSubagent": {
+        "name": "plan-evaluator",
+        "model": "sonnet",
+        "description": "계획 검증 — E1-E8 하드 임계값 판정. Sonnet 사용 (Opus 합리화 방지)",
+        "tools": [
+          "Read",
+          "Agent"
+        ]
+      }
+    },
+    {
+      "role": "explorer",
+      "inputs": {
+        "allowed": [
+          "request.prompt"
+        ],
+        "denied": []
+      },
+      "outputs": [
+        {
+          "type": "report",
+          "target": "stdout"
+        }
+      ],
+      "capabilities": {
+        "workspaceAccess": "read-only"
+      },
+      "policy": {
+        "maxAttempts": 1,
+        "fallbackProvider": null,
+        "escalateAfterAttempts": 1,
+        "consecutiveSameFailureLimit": 1
+      },
+      "claudeSubagent": {
+        "name": "explorer",
+        "model": "haiku",
+        "description": "코드베이스 탐색 전용 — 병렬 x2-3, Read-only",
+        "tools": [
+          "Read",
+          "Glob",
+          "Grep"
+        ]
+      }
+    },
+    {
+      "role": "researcher",
+      "inputs": {
+        "allowed": [
+          "request.prompt"
+        ],
+        "denied": []
+      },
+      "outputs": [
+        {
+          "type": "report",
+          "target": "stdout"
+        }
+      ],
+      "capabilities": {
+        "workspaceAccess": "read-only"
+      },
+      "policy": {
+        "maxAttempts": 1,
+        "fallbackProvider": null,
+        "escalateAfterAttempts": 1,
+        "consecutiveSameFailureLimit": 1
+      },
+      "claudeSubagent": {
+        "name": "researcher",
+        "model": "sonnet",
+        "description": "외부 정보 조사 — 필요시만 호출, Read-only",
+        "tools": [
+          "WebSearch",
+          "WebFetch",
+          "Read"
+        ]
+      }
+    },
+    {
+      "role": "dev",
+      "inputs": {
+        "allowed": [
+          ".crew/plans/{task-id}/plan.md",
+          ".crew/plans/{task-id}/contract.md",
+          ".crew/plans/{task-id}/review-report-{n}.md",
+          ".crew/plans/{task-id}/qa-report-{n}.md"
+        ],
+        "denied": [
+          ".crew/plans/{task-id}/brief.md",
+          ".crew/plans/{task-id}/spec.md",
+          ".crew/plans/{task-id}/analysis.md"
+        ]
+      },
+      "outputs": [
+        {
+          "type": "artifact",
+          "target": ".crew/plans/{task-id}/dev-log.md"
+        },
+        {
+          "type": "code",
+          "target": "<workspace files>"
+        }
+      ],
+      "capabilities": {
+        "workspaceAccess": "workspace-write"
+      },
+      "policy": {
+        "maxAttempts": 5,
+        "fallbackProvider": "claude",
+        "escalateAfterAttempts": 5,
+        "consecutiveSameFailureLimit": 3
+      },
+      "claudeSubagent": {
+        "name": "dev",
+        "model": "opus",
+        "description": "plan.md + contract.md 기반으로 코드를 구현하고 자체 검증한다",
+        "tools": [
+          "Read",
+          "Write",
+          "Edit",
+          "Glob",
+          "Grep",
+          "Bash"
+        ]
+      }
+    },
+    {
+      "role": "code-reviewer",
+      "inputs": {
+        "allowed": [
+          "git diff HEAD -- ':!.crew/'",
+          "guardrails.inline"
+        ],
+        "denied": [
+          ".crew/**"
+        ]
+      },
+      "outputs": [
+        {
+          "type": "artifact",
+          "target": ".crew/plans/{task-id}/review-report.md"
+        },
+        {
+          "type": "artifact",
+          "target": ".crew/plans/{task-id}/final-review-report.md"
+        }
+      ],
+      "capabilities": {
+        "workspaceAccess": "read-only"
+      },
+      "policy": {
+        "maxAttempts": 1,
+        "fallbackProvider": null,
+        "escalateAfterAttempts": 1,
+        "consecutiveSameFailureLimit": 1
+      },
+      "claudeSubagent": {
+        "name": "code-reviewer",
+        "model": "opus",
+        "description": "코드 품질 판정 — git diff + 가드레일(인라인) + 기존 코드 탐색",
+        "tools": [
+          "Read",
+          "Glob",
+          "Grep"
+        ]
+      }
+    },
+    {
+      "role": "qa",
+      "inputs": {
+        "allowed": [
+          ".crew/plans/{task-id}/plan.md"
+        ],
+        "denied": [
+          ".crew/plans/{task-id}/contract.md",
+          ".crew/plans/{task-id}/brief.md",
+          ".crew/plans/{task-id}/spec.md"
+        ]
+      },
+      "outputs": [
+        {
+          "type": "artifact",
+          "target": ".crew/plans/{task-id}/qa-report.md"
+        },
+        {
+          "type": "artifact",
+          "target": ".crew/plans/{task-id}/final-qa-report.md"
+        }
+      ],
+      "capabilities": {
+        "workspaceAccess": "read-only"
+      },
+      "policy": {
+        "maxAttempts": 1,
+        "fallbackProvider": null,
+        "escalateAfterAttempts": 1,
+        "consecutiveSameFailureLimit": 1
+      },
+      "claudeSubagent": {
+        "name": "qa",
+        "model": "sonnet",
+        "description": "실행 검증 — 빌드/린트/타입/테스트/E2E 직접 실행",
+        "tools": [
+          "Read",
+          "Glob",
+          "Grep",
+          "Bash"
+        ]
+      }
+    }
+  ]
+}

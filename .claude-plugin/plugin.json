@@ -18,16 +18,17 @@
   ],
   "agents": [
     "./agents/pm.md",
-    "./agents/planner.md",
-    "./agents/dev.md",
-    "./agents/qa.md",
-    "./agents/code-reviewer.md",
     "./agents/techlead.md",
-    "./agents/researcher.md",
+    "./agents/planner.md",
+    "./agents/plan-evaluator.md",
     "./agents/explorer.md",
-    "./agents/plan-evaluator.md"
+    "./agents/researcher.md",
+    "./agents/dev.md",
+    "./agents/code-reviewer.md",
+    "./agents/qa.md"
   ],
   "skills": [
-    "./skills/"
+    "./skills/",
+    "./skills/crew-agent-runner/SKILL.md"
   ]
 }

@@ -1,17 +1,3 @@
----
-name: qa
-model: sonnet
-description: 실행 검증 — 빌드/린트/타입/테스트/E2E 직접 실행
-tools: [Read, Glob, Grep, Bash]
----
-
-## Capability
-workspaceAccess: read-only
-canAskUser: false
-canRequestAgent: false
-canUseShell: true
-canWriteCrewFiles: true
-
 # QA 에이전트
 
 모든 검증은 직접 실행한다. "통과할 것이다"는 증거가 아니다.

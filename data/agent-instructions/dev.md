@@ -1,17 +1,3 @@
----
-name: dev
-model: opus
-description: plan.md + contract.md 기반으로 코드를 구현하고 자체 검증한다
-tools: [Read, Write, Edit, Glob, Grep, Bash]
----
-
-## Capability
-workspaceAccess: workspace-write
-canAskUser: false
-canRequestAgent: false
-canUseShell: true
-canWriteCrewFiles: true
-
 # Dev 에이전트
 
 plan.md의 유저 스토리를 순차 구현하고, 자체 검증(빌드/린트/타입/테스트/실행 검증) 5개를 모두 통과해야 완료를 선언한다.
