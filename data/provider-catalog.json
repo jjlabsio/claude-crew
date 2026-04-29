@@ -20,16 +20,18 @@
       { "id": "gpt-5.4", "reasoning": "medium", "status": "active" },
       { "id": "o3", "reasoning": "high", "status": "active" },
       { "id": "o3", "reasoning": "medium", "status": "active" },
-      { "id": "gpt-5.5-mini", "reasoning": "medium", "status": "active" }
+      { "id": "gpt-5.5-mini", "reasoning": "medium", "status": "active" },
+      { "id": "gpt-5.3-codex-spark", "reasoning": "low", "status": "active" },
+      { "id": "gpt-5.4-mini", "reasoning": "high", "status": "active" }
     ]
   },
   "agent_defaults": {
-    "pm": { "provider": "claude", "model": "opus" },
-    "techlead": { "provider": "claude", "model": "opus" },
-    "planner": { "provider": "claude", "model": "opus" },
+    "pm": { "provider": "codex", "model": "gpt-5.5", "reasoning": "medium" },
+    "techlead": { "provider": "codex", "model": "gpt-5.5", "reasoning": "medium" },
+    "planner": { "provider": "codex", "model": "gpt-5.5", "reasoning": "medium" },
     "plan-evaluator": { "provider": "claude", "model": "sonnet" },
-    "explorer": { "provider": "claude", "model": "haiku" },
-    "researcher": { "provider": "claude", "model": "sonnet" },
+    "explorer": { "provider": "codex", "model": "gpt-5.3-codex-spark", "reasoning": "low" },
+    "researcher": { "provider": "codex", "model": "gpt-5.4-mini", "reasoning": "high" },
     "qa": { "provider": "claude", "model": "sonnet" },
     "dev": { "provider": "codex", "model": "gpt-5.5", "reasoning": "medium" },
     "code-reviewer": { "provider": "codex", "model": "gpt-5.5", "reasoning": "medium" }
