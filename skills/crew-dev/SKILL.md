@@ -48,6 +48,7 @@ provider 선택, 런타임 선택, AgentResult 반환 형식, 후속 입력 주�
 - git commit 시 `--no-verify`를 생략하지 않는다. 호스트 프로젝트의 pre-commit hook 중복 실행을 방지하기 위함이다.
 - Dev가 자체 검증을 통과하지 못한 상태에서 검증 단계로 넘기지 않는다.
 - 에이전트가 허용된 산출물 범위를 넘어 `.crew/` 메타 파일을 탐색하거나 읽게 하지 않는다.
+- `git worktree add`를 직접 실행하지 않는다. 워크트리는 `EnterWorktree` 도구만 사용한다.
 
 ---
 
@@ -103,24 +104,24 @@ inputs:
 output:
 - 해석된 역할별 provider/model/runtime 정책
 - 유효성이 확인된 ACTIVE `contract.md`
-- 신규 또는 기존 워크트리 선택 결과
+- Claude 워크트리 `crew/{task-id}` 진입 결과
 - `contract.md` 상태 갱신
 
 role instructions:
 - **Phase 1a — provider 설정 해석**: 오케스트레이터는 provider 설정을 해석한다. 프로젝트 설정, 유저 설정, catalog 기본값 순으로 역할별 실행 정책을 결정하고 Phase 2, Phase 3에서 사용할 런타임 제약을 기록한다.
 - **Phase 1b — contract.md 검증**: `contract.md` 산출물을 읽는다. 파일 존재, `## 상태`의 ACTIVE 여부, `## 수용 기준`의 비어 있지 않음, `## 검증 시나리오` 존재를 확인한다.
-- **Phase 1c — 워크트리 결정**: `contract.md`의 `## 워크트리` 섹션을 우선 적용한다. 없으면 현재 디렉토리가 해당 task-id의 워크트리인지 확인한다. 신규 워크트리는 기준 브랜치에서 준비하고, 기존 워크트리는 reset 없이 이어간다.
+- **Phase 1c — 워크트리 진입**: 현재 세션이 이미 `crew/{task-id}` Claude 워크트리 안인지 확인한다. 워크트리 안이 아니면 `EnterWorktree(path: ".claude/worktrees/crew/{task-id}")`로 crew-interview/crew-plan이 생성한 기존 워크트리에 진입한다. 워크트리가 존재하지 않으면 `EnterWorktree(name: "crew/{task-id}")`로 새로 생성한다.
 - **Phase 1d — 상태 갱신**: `contract.md`의 `## 상태` 섹션을 `IN_PROGRESS`로 갱신한다.
 
 success gate:
 - provider 정책이 역할별로 해석되었다.
 - `contract.md`가 ACTIVE이며 필수 섹션을 가진다.
-- 이후 모든 작업이 수행될 워크트리가 결정되었다.
+- Claude 워크트리 `crew/{task-id}`에 진입했다.
 - 상태가 `IN_PROGRESS`로 갱신되었다.
 
 failure handling:
 - `contract.md` 검증 실패 시 구체적 사유와 함께 사용자에게 선택지를 제시한다.
-- 워크트리 준비 실패 시 상태를 BLOCKED로 갱신하고 작업을 중단한다.
+- Claude 워크트리 진입 실패 시 상태를 BLOCKED로 갱신하고 작업을 중단한다.
 - provider 해석 중 특정 provider를 사용할 수 없으면 runner 정책에 따라 fallback 또는 escalation을 적용한다.
 
 ### Phase 2 — US 단위 증분 루프
