@@ -100,7 +100,7 @@ function runClaude(sandboxPath, promptText, timeoutMs) {
     let settled = false;
     let timedOut = false;
 
-    const child = spawn("claude", ["-p", promptText], {
+    const child = spawn("claude", ["-p", "--dangerously-skip-permissions", promptText], {
       cwd: sandboxPath,
       stdio: ["ignore", "pipe", "pipe"],
       env: { ...process.env },
