@@ -1,6 +1,18 @@
 # Changelog
 
 
+## v0.1.34
+
+[compare changes](https://github.com/jjlabsio/claude-crew/compare/v0.1.33...v0.1.34)
+
+### 🚀 Enhancements
+
+- 공통 AgentRunner 구조 도입 — provider 호출 캡슐화 ([#29](https://github.com/jjlabsio/claude-crew/pull/29))
+
+### ❤️ Contributors
+
+- Jaejin Song ([@jjlabsio](https://github.com/jjlabsio))
+
 ## v0.1.33
 
 [compare changes](https://github.com/jjlabsio/claude-crew/compare/v0.1.32...v0.1.33)
