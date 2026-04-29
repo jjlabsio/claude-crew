@@ -4,6 +4,7 @@ import { tmpdir } from "node:os";
 import { basename, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
+import { persistCrewArtifact, ArtifactPersistError } from "./artifacts.mjs";
 import { renderPrompt } from "./render.mjs";
 
 const DEFAULT_COMPANION = fileURLToPath(
@@ -82,6 +83,11 @@ export async function dispatch(input) {
         agentResult,
         companionPayload: payload
       });
+    }
+
+    const artifactPath = await persistArtifactSafe(input, agentResult);
+    if (artifactPath) {
+      return { ...agentResult, artifact_path: artifactPath };
     }
 
     return agentResult;
@@ -233,6 +239,24 @@ function resolveCompanion(input = {}) {
     command: binary,
     prefixArgs: []
   };
+}
+
+async function persistArtifactSafe(input, agentResult) {
+  try {
+    return await persistCrewArtifact({
+      workspaceRoot: process.cwd(),
+      contract: input.contract,
+      request: input.request,
+      agentResult
+    });
+  } catch (error) {
+    if (error instanceof ArtifactPersistError) {
+      throw new DispatchError(`Artifact persist failed: ${error.message}`, {
+        agentResult
+      });
+    }
+    throw error;
+  }
 }
 
 function isNodeScript(value) {
