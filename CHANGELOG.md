@@ -1,6 +1,18 @@
 # Changelog
 
 
+## v0.1.47
+
+[compare changes](https://github.com/jjlabsio/claude-crew/compare/v0.1.46...v0.1.47)
+
+### 🩹 Fixes
+
+- 워크트리에서 $CLAUDE_PLUGIN_ROOT fallback으로 plugin root 해석 ([#48](https://github.com/jjlabsio/claude-crew/pull/48), [#51](https://github.com/jjlabsio/claude-crew/pull/51))
+
+### ❤️ Contributors
+
+- Jaejin Song ([@jjlabsio](https://github.com/jjlabsio))
+
 ## v0.1.46
 
 [compare changes](https://github.com/jjlabsio/claude-crew/compare/v0.1.45...v0.1.46)
