@@ -1,4 +1,5 @@
-import { readFile } from "node:fs/promises";
+import { spawnSync } from "node:child_process";
+import { readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 
 import { afterEach, describe, expect, test } from "vitest";
@@ -77,6 +78,49 @@ describe("persistCrewArtifact", () => {
     expect(result).toBe(join(tmpDir, ".crew/plans/plan-evaluator-99/review.md"));
     const content = await readFile(result, "utf8");
     expect(content).toBe("# Review\nPASS");
+  });
+
+  test("replaces {task-id} when request uses kebab-case key", async () => {
+    tmpDir = await mkTmpDir();
+
+    const result = await persistCrewArtifact({
+      workspaceRoot: tmpDir,
+      contract: readOnlyContract(".crew/plans/{task-id}/review.md"),
+      request: { "task-id": "overview-fe" },
+      agentResult: completeResult("# Review\nPASS")
+    });
+
+    expect(result).toBe(join(tmpDir, ".crew/plans/overview-fe/review.md"));
+    const content = await readFile(result, "utf8");
+    expect(content).toBe("# Review\nPASS");
+  });
+
+  test("replaces {run-id} in target path", async () => {
+    tmpDir = await mkTmpDir();
+
+    const result = await persistCrewArtifact({
+      workspaceRoot: tmpDir,
+      contract: readOnlyContract(".crew/runs/{run-id}/result.md"),
+      request: { runId: "direct-20260430-134322" },
+      agentResult: completeResult("# Result\nDone")
+    });
+
+    expect(result).toBe(join(tmpDir, ".crew/runs/direct-20260430-134322/result.md"));
+    const content = await readFile(result, "utf8");
+    expect(content).toBe("# Result\nDone");
+  });
+
+  test("rejects unresolved artifact target template variables", async () => {
+    tmpDir = await mkTmpDir();
+
+    await expect(
+      persistCrewArtifact({
+        workspaceRoot: tmpDir,
+        contract: readOnlyContract(".crew/plans/{task-id}/review.md"),
+        request: {},
+        agentResult: completeResult("# Review\nPASS")
+      })
+    ).rejects.toThrow(ArtifactPersistError);
   });
 
   test("returns null for workspace-write role (no-op)", async () => {
@@ -224,5 +268,46 @@ describe("persistCrewArtifact", () => {
     });
 
     expect(result).toBeNull();
+  });
+
+  test("persist-artifact CLI resolves kebab-case task-id before returning artifact_path", async () => {
+    tmpDir = await mkTmpDir();
+    const requestPath = join(tmpDir, "request.json");
+    const resultPath = join(tmpDir, "result.json");
+
+    await writeFile(
+      requestPath,
+      JSON.stringify({ "task-id": "overview-fe" }),
+      "utf8"
+    );
+    await writeFile(
+      resultPath,
+      JSON.stringify(completeResult("# Review\nPASS")),
+      "utf8"
+    );
+
+    const result = spawnSync(
+      process.execPath,
+      [
+        join(process.cwd(), "scripts/crew-agent-runner.mjs"),
+        "persist-artifact",
+        "--role",
+        "code-reviewer",
+        "--request-file",
+        requestPath,
+        "--result-file",
+        resultPath
+      ],
+      { cwd: tmpDir, encoding: "utf8" }
+    );
+
+    expect(result.status).toBe(0);
+    expect(result.stderr).toBe("");
+    const payload = JSON.parse(result.stdout);
+    expect(payload.artifact_path).toMatch(
+      new RegExp("[/\\\\]\\.crew[/\\\\]plans[/\\\\]overview-fe[/\\\\]review-report\\.md$")
+    );
+    const content = await readFile(payload.artifact_path, "utf8");
+    expect(content).toBe("# Review\nPASS");
   });
 });

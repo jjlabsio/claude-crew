@@ -18,7 +18,7 @@ export async function persistCrewArtifact({ workspaceRoot, contract, request, ag
     return null;
   }
 
-  const resolvedTarget = replaceTaskId(target, request?.taskId);
+  const resolvedTarget = resolveTemplateTarget(target, request);
   const absolutePath = validateTargetPath(workspaceRoot, resolvedTarget);
 
   await mkdir(dirname(absolutePath), { recursive: true });
@@ -57,11 +57,34 @@ function findArtifactTarget(contract) {
   return null;
 }
 
-function replaceTaskId(target, taskId) {
-  if (typeof taskId === "string" && taskId.length > 0) {
-    return target.replace(/\{task-id\}/g, taskId);
+function resolveTemplateTarget(target, request) {
+  const values = {
+    "task-id": firstString(request?.taskId, request?.task_id, request?.["task-id"]),
+    "run-id": firstString(request?.runId, request?.run_id, request?.["run-id"])
+  };
+
+  const resolved = target.replace(/\{(task-id|run-id)\}/g, (match, name) => {
+    const value = values[name];
+    return value ?? match;
+  });
+
+  const unresolved = resolved.match(/\{[^}/\\]+\}/);
+  if (unresolved) {
+    throw new ArtifactPersistError(
+      `Unresolved template variable ${unresolved[0]} in artifact target: ${target}`
+    );
   }
-  return target;
+
+  return resolved;
+}
+
+function firstString(...values) {
+  for (const value of values) {
+    if (typeof value === "string" && value.length > 0) {
+      return value;
+    }
+  }
+  return null;
 }
 
 function validateTargetPath(workspaceRoot, target) {
