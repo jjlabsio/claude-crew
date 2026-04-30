@@ -11,6 +11,7 @@ import { execSync } from 'node:child_process';
 import { existsSync, readFileSync, writeFileSync, mkdirSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { homedir } from 'node:os';
+import { PLUGIN_ROOT } from './lib/pluginRoot.mjs';
 
 // ---------------------------------------------------------------------------
 // Read stdin (with timeout)
@@ -31,6 +32,39 @@ function gitExec(cmd, cwd) {
   try {
     return execSync(cmd, { cwd, encoding: 'utf-8', timeout: 3000, stdio: ['pipe', 'pipe', 'pipe'] }).trim();
   } catch { return null; }
+}
+
+function readPluginVersion() {
+  const packageJson = JSON.parse(readFileSync(join(PLUGIN_ROOT, 'package.json'), 'utf-8'));
+  return packageJson.version;
+}
+
+function updatePluginRootCache(pluginRoot) {
+  try {
+    const crewDir = join(homedir(), '.claude', 'crew');
+    const cachePath = join(crewDir, 'plugin-root.json');
+
+    let shouldWrite = !existsSync(cachePath);
+    if (!shouldWrite) {
+      try {
+        const current = JSON.parse(readFileSync(cachePath, 'utf-8'));
+        shouldWrite = current.pluginRoot !== pluginRoot;
+      } catch {
+        shouldWrite = true;
+      }
+    }
+
+    if (!shouldWrite) return;
+
+    mkdirSync(crewDir, { recursive: true });
+    writeFileSync(cachePath, JSON.stringify({
+      pluginRoot,
+      version: readPluginVersion(),
+      updatedAt: new Date().toISOString(),
+    }, null, 2));
+  } catch {
+    // Best-effort cache for runner fallback. HUD setup must continue on failure.
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -73,6 +107,8 @@ async function main() {
       mkdirSync(join(projectRoot, '.claude'), { recursive: true });
       writeFileSync(localSettingsPath, JSON.stringify(localSettings, null, 2));
     }
+
+    updatePluginRootCache(pluginRoot);
 
     console.log(JSON.stringify({ continue: true }));
   } catch (e) {

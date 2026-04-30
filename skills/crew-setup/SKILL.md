@@ -102,6 +102,27 @@ push는 하지 않는다.
 
 ---
 
+## Step 2b — Plugin Root 영속화
+
+`$CLAUDE_PLUGIN_ROOT`가 살아있는 setup 시점에 runner fallback용 plugin root를 사용자 데이터 영역에 저장한다.
+
+1. `~/.claude/crew/` 디렉토리가 없으면 생성한다.
+2. `~/.claude/crew/plugin-root.json`을 다음 형식으로 쓴다. 기존 파일이 있으면 덮어쓴다.
+   ```json
+   {
+     "pluginRoot": "<$CLAUDE_PLUGIN_ROOT 값>",
+     "version": "<현재 플러그인 버전>",
+     "updatedAt": "<ISO timestamp>"
+   }
+   ```
+3. plugin 자체 데이터인 version은 plugin root 기준 `package.json`에서 읽는다.
+
+**주의**:
+- plugin root는 `$CLAUDE_PLUGIN_ROOT` 값을 사용한다.
+- `~/.claude/crew/plugin-root.json`은 사용자 데이터이므로 home 기준 경로에 저장한다.
+
+---
+
 ## Step 3 — Provider 설정
 
 에이전트별로 어떤 provider(claude/codex)와 model을 사용할지 설정한다.

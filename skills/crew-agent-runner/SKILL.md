@@ -7,12 +7,25 @@ description: 모든 crew 에이전트 dispatch의 중앙 규약 — provider별 
 
 crew 업무 스킬은 에이전트 provider별 호출 세부사항을 직접 구현하지 않고 이 중앙 규약을 따른다. 본 스킬은 prepare, resolve, dispatch, resume, followup 주입, retry/fallback/escalate 판단의 공통 표면을 정의한다.
 
-설치 후 drift 차단용 pre-commit hook은 `node scripts/crew-agent-runner.mjs install-hooks`로 설치한다.
+설치 후 drift 차단용 pre-commit hook은 `node "$CREW_ROOT/scripts/crew-agent-runner.mjs" install-hooks`로 설치한다.
 (plugin 개발자 전용 — 사용자는 호출하지 않습니다. build/validate는 plugin source repo의 drift 차단 도구입니다.)
 
 ## Dispatch 절차
 
 업무 스킬(crew-plan/crew-interview/crew-dev)이 role을 실행해야 할 때 본 절차를 따른다.
+
+### Step 0. Runner 경로 결정
+
+오케스트레이터는 runner 호출 전에 plugin root를 결정하고, 결정된 경로를 `CREW_ROOT`로 사용한다.
+
+Fallback 체인 (순서 중요):
+
+1. `$CLAUDE_PLUGIN_ROOT`가 있으면 사용한다. 정상 Claude Code plugin 환경이므로 추가 검증하지 않는다.
+2. `~/.claude/crew/plugin-root.json`의 `pluginRoot`를 읽는다. 해당 경로에 `scripts/crew-agent-runner.mjs`가 존재하면 사용하고, 없으면 다음 fallback으로 진행한다.
+3. `git rev-parse --show-toplevel` 결과를 dev 환경 전용 후보로 사용한다. 해당 경로의 `package.json`에서 `name`이 `@jjlabsio/claude-crew`인지 검증하고, 맞으면 사용한다. 아니면 다음 fallback으로 진행한다.
+4. 모든 fallback이 실패하면 `'/crew-setup을 먼저 실행하세요'` 에러 메시지로 중단한다.
+
+이후 모든 runner 호출은 `node "$CREW_ROOT/scripts/crew-agent-runner.mjs"` 형식을 사용한다.
 
 ### 1. request 객체 작성
 
@@ -20,7 +33,7 @@ crew 업무 스킬은 에이전트 provider별 호출 세부사항을 직접 구
 
 ### 2. prepare
 
-오케스트레이터는 `node "$CLAUDE_PLUGIN_ROOT/scripts/crew-agent-runner.mjs" prepare --role <role> --request-file <request-file> --json`을 실행한다.
+오케스트레이터는 `node "$CREW_ROOT/scripts/crew-agent-runner.mjs" prepare --role <role> --request-file <request-file> --json`을 실행한다.
 prepare는 provider/model/contract를 해석하고 다음 action 중 하나를 반환한다.
 
 ### 3a. dispatch action
@@ -67,8 +80,8 @@ capability를 넘어선 도구 요청이다. 오케스트레이터가 `contract.
 
 ### Codex 경로
 
-1. `node scripts/crew-agent-runner.mjs render-followup --previous-result <file> --new-input <file>` 실행 → followup prompt 문자열 → 임시 파일에 저장.
-2. `node scripts/crew-agent-runner.mjs dispatch --role <role> --request-file <new-request-with-followup-prompt> --resume-handle <agent_handle> --json` 실행.
+1. `node "$CREW_ROOT/scripts/crew-agent-runner.mjs" render-followup --previous-result <file> --new-input <file>` 실행 → followup prompt 문자열 → 임시 파일에 저장.
+2. `node "$CREW_ROOT/scripts/crew-agent-runner.mjs" dispatch --role <role> --request-file <new-request-with-followup-prompt> --resume-handle <agent_handle> --json` 실행.
    - 내부적으로 runner가 `crew-codex-companion.mjs task-resume-candidate`로 thread 일치 검증 후 `task --resume-last`를 호출하고 AgentResult를 정규화한다.
 3. AgentResult JSON을 받아 다음 상태 처리.
 
