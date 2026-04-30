@@ -69,6 +69,7 @@ describe("resolveRole", () => {
       model: "gpt-5.5",
       reasoning: "high",
       codex_sandbox: "read-only",
+      codex_network_access: false,
       contract: fixtureContracts().roles[1],
       dispatch: { path: "codex", write: false },
       warnings: [

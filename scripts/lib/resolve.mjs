@@ -23,6 +23,7 @@ export function resolveRole(input) {
   if (!["read-only", "workspace-write"].includes(codexSandbox)) {
     throw new Error(`Missing codex_sandbox for role ${role}`);
   }
+  const codexNetworkAccess = catalog?.agent_runtime?.[role]?.codex_network_access === true;
 
   const warnings = [];
   const workspaceAccess = contract?.capabilities?.workspaceAccess;
@@ -38,6 +39,7 @@ export function resolveRole(input) {
     model,
     reasoning: provider === "codex" ? defaults.reasoning ?? null : null,
     codex_sandbox: codexSandbox,
+    codex_network_access: codexNetworkAccess,
     contract,
     dispatch: {
       path: provider === "codex" ? "codex" : "claude",

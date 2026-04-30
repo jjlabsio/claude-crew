@@ -73,7 +73,7 @@ function printUsage() {
   console.log(
     [
       "Usage:",
-      "  node scripts/crew-codex-companion.mjs task [--background] [--write] [--expect-crew-result] [--resume-last|--resume|--fresh] [--model <model|spark>] [--effort <none|minimal|low|medium|high|xhigh>] [prompt]",
+      "  node scripts/crew-codex-companion.mjs task [--background] [--write] [--network-access] [--expect-crew-result] [--resume-last|--resume|--fresh] [--model <model|spark>] [--effort <none|minimal|low|medium|high|xhigh>] [prompt]",
       "  node scripts/crew-codex-companion.mjs status [job-id] [--all] [--json]",
       "  node scripts/crew-codex-companion.mjs result [job-id] [--json]",
       "  node scripts/crew-codex-companion.mjs cancel [job-id] [--json]"
@@ -341,6 +341,7 @@ async function executeTaskRun(request) {
     model: request.model,
     effort: request.effort,
     sandbox: request.write ? "workspace-write" : "read-only",
+    networkAccess: Boolean(request.networkAccess),
     onProgress: request.onProgress,
     persistThread: true,
     threadName: resumeThreadId ? null : buildPersistentTaskThreadName(request.prompt || DEFAULT_CONTINUE_PROMPT)
@@ -455,13 +456,14 @@ function buildTaskJob(workspaceRoot, taskMetadata, write) {
   });
 }
 
-function buildTaskRequest({ cwd, model, effort, prompt, write, resumeLast, expectCrewResult, jobId }) {
+function buildTaskRequest({ cwd, model, effort, prompt, write, networkAccess, resumeLast, expectCrewResult, jobId }) {
   return {
     cwd,
     model,
     effort,
     prompt,
     write,
+    networkAccess,
     resumeLast,
     expectCrewResult,
     jobId
@@ -591,7 +593,7 @@ function enqueueBackgroundTask(cwd, job, request) {
 async function handleTask(argv) {
   const { options, positionals } = parseCommandInput(argv, {
     valueOptions: ["model", "effort", "cwd", "prompt-file"],
-    booleanOptions: ["json", "write", "expect-crew-result", "resume-last", "resume", "fresh", "background"],
+    booleanOptions: ["json", "write", "network-access", "expect-crew-result", "resume-last", "resume", "fresh", "background"],
     aliasMap: {
       m: "model"
     }
@@ -609,6 +611,7 @@ async function handleTask(argv) {
     throw new Error("Choose either --resume/--resume-last or --fresh.");
   }
   const write = Boolean(options.write);
+  const networkAccess = Boolean(options["network-access"]);
   const expectCrewResult = Boolean(options["expect-crew-result"]);
   const taskMetadata = buildTaskRunMetadata({
     prompt,
@@ -626,6 +629,7 @@ async function handleTask(argv) {
       effort,
       prompt,
       write,
+      networkAccess,
       resumeLast,
       expectCrewResult,
       jobId: job.id
@@ -645,6 +649,7 @@ async function handleTask(argv) {
         effort,
         prompt,
         write,
+        networkAccess,
         resumeLast,
         expectCrewResult,
         jobId: job.id,

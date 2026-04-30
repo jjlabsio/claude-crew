@@ -264,6 +264,10 @@ function buildTaskArgs(input, promptFile) {
     args.push("--write");
   }
 
+  if (input.resolved?.codex_network_access) {
+    args.push("--network-access");
+  }
+
   if (input.resolved?.model) {
     args.push("--model", input.resolved.model);
   }
