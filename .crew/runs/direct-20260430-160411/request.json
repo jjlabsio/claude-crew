@@ -1,0 +1,28 @@
+{
+  "role": "dev",
+  "mode": "direct",
+  "taskId": "direct-20260430-160411",
+  "inputs": [
+    {
+      "path": ".crew/runs/direct-20260430-160411/request.md",
+      "content": "카탈로그 기본값에 암묵적으로 의존하는 CLI 테스트에 project config override 적용"
+    },
+    {
+      "path": "request.mode",
+      "content": "direct"
+    },
+    {
+      "path": "request.task",
+      "content": "tests/runner/prepare.test.mjs, tests/runner/dispatch.test.mjs, tests/runner/resolve.test.mjs의 CLI 테스트에서 카탈로그 기본값에 암묵적으로 의존하는 부분을 project config override 패턴으로 수정하라. 상세 대상과 패턴은 .crew/runs/direct-20260430-160411/request.md 참조."
+    }
+  ],
+  "instruction": "Direct mode로 수행하라. request.md의 수정 대상 목록과 패턴을 작업 계약으로 사용한다. lib 레벨 테스트는 수정하지 않는다. CLI 테스트만 수정한다. 수정 후 npx vitest run으로 전체 통과를 확인한다.",
+  "successGate": [
+    "prepare.test.mjs의 codex provider CLI 테스트에 project config override가 적용되었다",
+    "dispatch.test.mjs의 dev role CLI 테스트에 project config override가 적용되었다",
+    "resolve.test.mjs의 planner role CLI 테스트에 project config override가 적용되었다",
+    "npx vitest run 전체 통과",
+    "변경 파일, 검증 결과를 AgentResult artifact에 보고했다"
+  ],
+  "failureHandling": "테스트가 깨지면 원인을 분석하고 수정 후 재검증한다. 해결 불가능하면 failed를 반환한다."
+}

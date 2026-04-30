@@ -1,6 +1,7 @@
 import { mkdir, writeFile } from "node:fs/promises";
-import { join } from "node:path";
+import { dirname, join, resolve } from "node:path";
 import { spawnSync } from "node:child_process";
+import { fileURLToPath } from "node:url";
 
 import { afterEach, describe, expect, test } from "vitest";
 
@@ -11,6 +12,8 @@ import {
 } from "../../scripts/lib/config.mjs";
 import { resolveRole } from "../../scripts/lib/resolve.mjs";
 import { cleanupTmpDir, mkTmpDir } from "../_helpers/fs.mjs";
+
+const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..", "..");
 
 let tmpDir;
 
@@ -138,11 +141,23 @@ describe("config loaders", () => {
 });
 
 describe("crew-agent-runner resolve CLI", () => {
-  test("prints JSON for planner role", () => {
+  test("prints JSON for planner role", async () => {
+    tmpDir = await mkTmpDir();
+    await mkdir(join(tmpDir, ".crew"), { recursive: true });
+    await writeFile(
+      join(tmpDir, ".crew", "config.json"),
+      JSON.stringify({
+        providers: {
+          planner: { provider: "codex", model: "gpt-5.5", reasoning: "medium" }
+        }
+      }),
+      "utf8"
+    );
+
     const result = spawnSync(
       process.execPath,
-      ["scripts/crew-agent-runner.mjs", "resolve", "--role", "planner", "--json"],
-      { encoding: "utf8" }
+      [join(REPO_ROOT, "scripts", "crew-agent-runner.mjs"), "resolve", "--role", "planner", "--json"],
+      { encoding: "utf8", cwd: tmpDir }
     );
 
     expect(result.status).toBe(0);
