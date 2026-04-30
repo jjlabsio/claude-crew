@@ -8,7 +8,7 @@ export function renderPrompt(input) {
     section("Instructions", request.instruction, { required: true }),
     section("Success Gate", request.successGate),
     section("Failure Handling", request.failureHandling),
-    section("AgentResult Contract", renderAgentResultContract())
+    section("AgentResult Contract", renderAgentResultContract(contract))
   ].filter(Boolean);
 
   return `${parts.join("\n\n")}\n`;
@@ -41,7 +41,7 @@ function renderCapability(contract) {
     `canAskUser: ${String(tools.includes("AskUserQuestion"))}`,
     `canRequestAgent: ${String(tools.includes("Agent"))}`,
     `canUseShell: ${String(tools.includes("Bash"))}`,
-    `canWriteCrewFiles: ${String(canWriteCrewFiles(outputs))}`
+    `canReturnCrewArtifact: ${String(canReturnCrewArtifact(outputs, contract.capabilities?.workspaceAccess))}`
   ].join("\n");
 }
 
@@ -73,15 +73,19 @@ function renderJson(value) {
   return JSON.stringify(value, null, 2);
 }
 
-function renderAgentResultContract() {
-  return [
+function renderAgentResultContract(contract = {}) {
+  const outputs = Array.isArray(contract.outputs) ? contract.outputs : [];
+  const workspaceAccess = contract.capabilities?.workspaceAccess;
+  const returnArtifact = canReturnCrewArtifact(outputs, workspaceAccess);
+
+  const lines = [
     "Return exactly one final AgentResult JSON object wrapped in these tags:",
     "",
     "```text",
     "<crew-agent-result>",
     "{",
     '  "status": "complete | blocked_on_user | needs_agent | needs_tool | failed",',
-    '  "artifact": null,',
+    `  "artifact": ${returnArtifact ? '"full Markdown content of the artifact"' : "null"},`,
     '  "questions": [],',
     '  "requests": [],',
     '  "summary": "short summary",',
@@ -97,7 +101,15 @@ function renderAgentResultContract() {
     "- Use blocked_on_user only with a non-empty questions array.",
     "- Use needs_agent or needs_tool only with a non-empty requests array.",
     "- Use failed with an error string when the task cannot continue."
-  ].join("\n");
+  ];
+
+  if (returnArtifact) {
+    lines.push(
+      "- Do NOT write the artifact file yourself. Instead, put the full Markdown content into the artifact field as a string. The runner will validate and save it to the target path."
+    );
+  }
+
+  return lines.join("\n");
 }
 
 function normalizeBody(body) {
@@ -127,7 +139,11 @@ function titleCase(value) {
     .join("-");
 }
 
-function canWriteCrewFiles(outputs) {
+export function canReturnCrewArtifact(outputs, workspaceAccess) {
+  if (workspaceAccess !== "read-only") {
+    return false;
+  }
+
   return outputs.some((output) => {
     return (
       output?.type === "artifact" &&

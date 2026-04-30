@@ -10,6 +10,10 @@ import {
 } from "./lib/config.mjs";
 import { parseArgv } from "./lib/cli.mjs";
 import {
+  persistCrewArtifact,
+  ArtifactPersistError
+} from "./lib/artifacts.mjs";
+import {
   dispatch,
   DispatchError,
   formatDispatchProviderGuardMessage
@@ -40,6 +44,10 @@ async function main(argv) {
 
   if (command === "dispatch") {
     return dispatchCommand(flags);
+  }
+
+  if (command === "persist-artifact") {
+    return persistArtifactCommand(flags);
   }
 
   if (command === "render-followup") {
@@ -224,6 +232,61 @@ function renderFollowupCommand(flags) {
   }
 }
 
+async function persistArtifactCommand(flags) {
+  if (typeof flags.role !== "string" || flags.role.length === 0) {
+    console.error("Missing required --role <name>");
+    return 1;
+  }
+
+  if (
+    typeof flags["result-file"] !== "string" ||
+    flags["result-file"].length === 0
+  ) {
+    console.error("Missing required --result-file <path>");
+    return 1;
+  }
+
+  if (
+    typeof flags["request-file"] !== "string" ||
+    flags["request-file"].length === 0
+  ) {
+    console.error("Missing required --request-file <path>");
+    return 1;
+  }
+
+  try {
+    const contracts = loadContracts();
+    const contract = findContract(flags.role, contracts);
+    if (!contract) {
+      throw new Error(`Unknown role: ${flags.role}`);
+    }
+
+    const agentResult = JSON.parse(readFileSync(flags["result-file"], "utf8"));
+    const request = JSON.parse(readFileSync(flags["request-file"], "utf8"));
+
+    const savedPath = await persistCrewArtifact({
+      workspaceRoot: process.cwd(),
+      contract,
+      request,
+      agentResult
+    });
+
+    if (savedPath) {
+      process.stdout.write(`${JSON.stringify({ artifact_path: savedPath })}\n`);
+    } else {
+      process.stdout.write(`${JSON.stringify({ artifact_path: null })}\n`);
+    }
+    return 0;
+  } catch (error) {
+    if (error instanceof ArtifactPersistError) {
+      console.error(error.message);
+      return 1;
+    }
+    console.error(error.message);
+    return 1;
+  }
+}
+
 async function dispatchCommand(flags) {
   if (typeof flags.role !== "string" || flags.role.length === 0) {
     console.error("Missing required --role <name>");
@@ -375,6 +438,9 @@ function usage() {
   );
   console.error(
     "       crew-agent-runner dispatch --role <name> --request-file <path> [--json] [--resume-handle <thread-id>]"
+  );
+  console.error(
+    "       crew-agent-runner persist-artifact --role <name> --result-file <path> --request-file <path>"
   );
 }
 

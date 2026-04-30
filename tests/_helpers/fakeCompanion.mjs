@@ -85,6 +85,21 @@ if (args[0] === "task-resume-candidate") {
       },
       1
     );
+  } else if (response === "completeArtifactString") {
+    output({
+      status: 0,
+      threadId: "thread-complete-123",
+      rawOutput: "complete",
+      crewAgentResult: {
+        status: "complete",
+        artifact: "# Analysis\nThis is the artifact content.",
+        questions: [],
+        requests: [],
+        summary: "Fake companion completed with artifact string",
+        error: null
+      },
+      crewAgentResultError: null
+    });
   } else {
     output({
       status: 0,

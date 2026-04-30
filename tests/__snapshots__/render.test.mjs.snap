@@ -8,7 +8,7 @@ workspaceAccess: read-only
 canAskUser: false
 canRequestAgent: true
 canUseShell: false
-canWriteCrewFiles: true
+canReturnCrewArtifact: true
 
 ## Inputs
 ### .crew/plans/task-123/spec.md
@@ -41,7 +41,7 @@ Return exactly one final AgentResult JSON object wrapped in these tags:
 <crew-agent-result>
 {
   "status": "complete | blocked_on_user | needs_agent | needs_tool | failed",
-  "artifact": null,
+  "artifact": "full Markdown content of the artifact",
   "questions": [],
   "requests": [],
   "summary": "short summary",
@@ -57,5 +57,6 @@ Rules:
 - Use blocked_on_user only with a non-empty questions array.
 - Use needs_agent or needs_tool only with a non-empty requests array.
 - Use failed with an error string when the task cannot continue.
+- Do NOT write the artifact file yourself. Instead, put the full Markdown content into the artifact field as a string. The runner will validate and save it to the target path.
 "
 `;
