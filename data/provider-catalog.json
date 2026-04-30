@@ -29,10 +29,10 @@
     "pm": { "provider": "codex", "model": "gpt-5.5", "reasoning": "medium" },
     "techlead": { "provider": "codex", "model": "gpt-5.5", "reasoning": "high" },
     "planner": { "provider": "codex", "model": "gpt-5.5", "reasoning": "medium" },
-    "plan-evaluator": { "provider": "claude", "model": "sonnet" },
+    "plan-evaluator": { "provider": "codex", "model": "gpt-5.4-mini", "reasoning": "high" },
     "explorer": { "provider": "codex", "model": "gpt-5.3-codex-spark", "reasoning": "low" },
     "researcher": { "provider": "codex", "model": "gpt-5.4-mini", "reasoning": "high" },
-    "qa": { "provider": "claude", "model": "sonnet" },
+    "qa": { "provider": "codex", "model": "gpt-5.4-mini", "reasoning": "high" },
     "dev": { "provider": "codex", "model": "gpt-5.5", "reasoning": "medium" },
     "code-reviewer": { "provider": "codex", "model": "gpt-5.5", "reasoning": "high" }
   },
