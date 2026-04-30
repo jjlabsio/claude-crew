@@ -44,7 +44,7 @@
     "explorer": { "codex_sandbox": "read-only" },
     "researcher": { "codex_sandbox": "read-only" },
     "qa": { "codex_sandbox": "read-only" },
-    "dev": { "codex_sandbox": "workspace-write" },
+    "dev": { "codex_sandbox": "workspace-write", "codex_network_access": true },
     "code-reviewer": { "codex_sandbox": "read-only" }
   }
 }

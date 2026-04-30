@@ -1,0 +1,26 @@
+{
+  "role": "dev",
+  "mode": "direct",
+  "taskId": "direct-20260430-164709",
+  "inputs": [
+    {
+      "path": ".crew/runs/direct-20260430-164709/request.md",
+      "content": "# 조사 요청: Codex 샌드박스 네트워크 차단 해결 방법\n\n## 배경\ncodex 샌드박스의 `workspace-write` 모드에서 외부 네트워크(DNS/HTTP)가 차단되어 `pnpm install`, `npm install` 등 패키지 설치가 `ENOTFOUND`로 실패하는 문제가 있다.\n\n## 조사 항목\n\n1. **codex CLI 네트워크 허용 옵션**: codex CLI에 네트워크 접근을 허용하는 플래그나 설정이 있는지 조사\n2. **다른 sandbox 모드**: `workspace-write` 외에 네트워크를 허용하는 sandbox 모드가 있는지 조사\n3. **우회 방법**: 패키지 설치가 필요한 작업에서 codex를 사용할 수 있는 우회 방법이 있는지 조사\n\n## 기대 산출물\n각 항목에 대한 조사 결과를 정리하고, 실제 적용 가능한 해결 방안을 제시해줘."
+    },
+    {
+      "path": "request.mode",
+      "content": "direct"
+    },
+    {
+      "path": "request.task",
+      "content": "codex 샌드박스의 workspace-write 모드에서 외부 네트워크(DNS/HTTP)가 차단되어 pnpm install, npm install 등 패키지 설치가 ENOTFOUND로 실패하는 문제가 있다. 이 문제를 해결할 수 있는 방법을 조사해줘. 구체적으로: 1) codex CLI에 네트워크 허용 옵션이 있는지 2) workspace-write 외에 네트워크를 허용하는 sandbox 모드가 있는지 3) 패키지 설치가 필요한 작업에서 codex를 사용할 수 있는 우회 방법이 있는지 조사하고 정리해줘."
+    }
+  ],
+  "instruction": "Direct mode로 수행하라. 사용자 요청을 작은 작업 계약으로 보고 직접 탐색, 수정, 검증한다.",
+  "successGate": [
+    "요청된 조사가 완료되었다",
+    "각 항목에 대한 구체적 결과가 정리되었다",
+    "변경 파일, 검증 결과, 남은 리스크를 AgentResult artifact에 보고했다"
+  ],
+  "failureHandling": "요구사항이 불명확하거나 범위가 커지면 blocked_on_user를 반환한다. 실행 중 실패가 있으면 수정 후 재검증하고, 계속 진행할 수 없을 때 failed를 반환한다."
+}

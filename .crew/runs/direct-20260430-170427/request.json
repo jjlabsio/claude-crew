@@ -1,0 +1,26 @@
+{
+  "role": "dev",
+  "mode": "direct",
+  "taskId": "direct-20260430-170427",
+  "inputs": [
+    {
+      "path": ".crew/runs/direct-20260430-170427/request.md",
+      "content": "# 코드리뷰 요청: f533959\n\n커밋 f533959 (feat: codex workspace-write 샌드박스에 네트워크 접근 허용 옵션 추가)에 대한 코드리뷰를 수행해줘.\n\n## 변경 파일\n- data/provider-catalog.json\n- scripts/lib/resolve.mjs\n- scripts/lib/dispatch.mjs\n- scripts/crew-codex-companion.mjs\n- scripts/crew-codex/lib/codex.mjs\n- tests/runner/resolve.test.mjs\n\n## 검토 항목\n1. 코드 품질 및 기존 코드와의 일관성\n2. 누락된 엣지 케이스\n3. 보안 우려 (네트워크 접근 허용의 보안 영향)\n4. 개선 제안"
+    },
+    {
+      "path": "request.mode",
+      "content": "direct"
+    },
+    {
+      "path": "request.task",
+      "content": "커밋 f533959의 코드리뷰를 수행하라. git diff HEAD~1 HEAD로 변경사항을 확인하고, 변경된 6개 파일의 코드 품질, 누락된 엣지 케이스, 보안 우려, 기존 코드와의 일관성을 검토하고 개선점이 있으면 제안해줘. 코드 변경은 하지 말고 리뷰 결과만 artifact에 보고해줘."
+    }
+  ],
+  "instruction": "Direct mode로 수행하라. 코드를 수정하지 말고 리뷰만 수행한다. git diff HEAD~1 HEAD로 변경사항을 확인하고 각 파일의 변경을 분석하라.",
+  "successGate": [
+    "모든 변경 파일에 대한 리뷰가 완료되었다",
+    "코드 품질, 엣지 케이스, 보안, 일관성 관점의 검토 결과가 정리되었다",
+    "리뷰 결과를 AgentResult artifact에 보고했다"
+  ],
+  "failureHandling": "요구사항이 불명확하거나 범위가 커지면 blocked_on_user를 반환한다. 실행 중 실패가 있으면 수정 후 재검증하고, 계속 진행할 수 없을 때 failed를 반환한다."
+}
