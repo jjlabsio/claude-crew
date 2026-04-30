@@ -149,8 +149,8 @@ describe("crew-agent-runner resolve CLI", () => {
     expect(result.stderr).toBe("");
     expect(JSON.parse(result.stdout)).toMatchObject({
       role: "planner",
-      provider: "claude",
-      dispatch: { path: "claude", write: false }
+      provider: "codex",
+      dispatch: { path: "codex", write: false }
     });
     expect(result.stdout.endsWith("\n")).toBe(true);
   });

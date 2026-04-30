@@ -100,14 +100,14 @@ describe("crew-agent-runner dispatch CLI", () => {
     const requestPath = await writeRequest();
 
     const result = runDispatch(
-      ["--role", "planner", "--request-file", requestPath, "--json"],
+      ["--role", "qa", "--request-file", requestPath, "--json"],
       { FAKE_COMPANION_RESPONSE: "complete" }
     );
 
     expect(result.status).toBe(2);
     expect(result.stdout).toBe("");
     expect(result.stderr).toContain(
-      "dispatch is for Codex provider only. Resolved provider for role 'planner' is 'claude'. Use 'render' + Agent tool for Claude provider (see crew-agent-runner SKILL.md)."
+      "dispatch is for Codex provider only. Resolved provider for role 'qa' is 'claude'. Use 'render' + Agent tool for Claude provider (see crew-agent-runner SKILL.md)."
     );
   });
 

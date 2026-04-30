@@ -35,7 +35,7 @@ const REQUIRED_PHASES = [
 const REQUIRED_FLOW_MARKERS = [
   "Phase 1a — provider 설정 해석",
   "Phase 1b — contract.md 검증",
-  "Phase 1c — 워크트리 결정",
+  "Phase 1c — 워크트리 진입",
   "Phase 1d — 상태 갱신",
   "Phase 2a — US 목록 파싱",
   "Phase 2b Step 1 — Dev 실행",

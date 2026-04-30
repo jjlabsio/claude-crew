@@ -51,7 +51,7 @@ describe("crew-agent-runner prepare CLI", () => {
 
     const result = runPrepare([
       "--role",
-      "planner",
+      "plan-evaluator",
       "--request-file",
       requestPath,
       "--json"
@@ -61,13 +61,13 @@ describe("crew-agent-runner prepare CLI", () => {
     expect(result.stderr).toBe("");
     const payload = JSON.parse(result.stdout);
     expect(payload).toMatchObject({
-      role: "planner",
+      role: "plan-evaluator",
       provider: "claude",
       action: "agent",
-      subagent_type: "planner",
-      model: "opus"
+      subagent_type: "plan-evaluator",
+      model: "sonnet"
     });
-    expect(payload.prompt).toContain("# Planner\n");
+    expect(payload.prompt).toContain("# Plan-Evaluator\n");
     expect(payload.prompt).toContain("## AgentResult Contract\n");
   });
 

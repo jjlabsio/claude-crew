@@ -221,7 +221,13 @@
           ".crew/plans/{task-id}/plan.md",
           ".crew/plans/{task-id}/contract.md",
           ".crew/plans/{task-id}/review-report-{n}.md",
-          ".crew/plans/{task-id}/qa-report-{n}.md"
+          ".crew/plans/{task-id}/qa-report-{n}.md",
+          ".crew/tasks/{task-id}.md",
+          ".crew/runs/{run-id}/request.md",
+          "request.mode",
+          "request.task",
+          "request.context",
+          "request.files"
         ],
         "denied": [
           ".crew/plans/{task-id}/brief.md",
@@ -233,6 +239,10 @@
         {
           "type": "artifact",
           "target": ".crew/plans/{task-id}/dev-log.md"
+        },
+        {
+          "type": "artifact",
+          "target": ".crew/runs/{run-id}/result.md"
         },
         {
           "type": "code",
