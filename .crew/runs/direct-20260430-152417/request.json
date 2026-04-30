@@ -1,0 +1,30 @@
+{
+  "role": "dev",
+  "mode": "direct",
+  "taskId": "direct-20260430-152417",
+  "inputs": [
+    {
+      "path": ".crew/runs/direct-20260430-152417/request.md",
+      "content": "GitHub Issue #46: 컨텍스트 한계 도달 시 crew 워크플로우 상태 보존/복구. 상세 내용은 request.md 참조."
+    },
+    {
+      "path": "request.mode",
+      "content": "direct"
+    },
+    {
+      "path": "request.task",
+      "content": "GitHub 이슈 #46을 구현하라. 1) lib/crew-state.mjs에 run state read/write/checkpoint helper 추가 2) scripts/crew-pre-compact.mjs 구현 (PreCompact hook) 3) scripts/crew-context-guard-stop.mjs 구현 (Stop context guard) 4) scripts/crew-session-restore.mjs 구현 (SessionStart restore) 5) hooks/hooks.json에 PreCompact, Stop, SessionStart restore hook 연결 6) 테스트 추가. 상세 스키마와 동작은 .crew/runs/direct-20260430-152417/request.md 참조."
+    }
+  ],
+  "instruction": "Direct mode로 수행하라. .crew/runs/direct-20260430-152417/request.md의 상세 요구사항을 작업 계약으로 사용한다. plugin 자체 파일(lib/, scripts/, hooks/)은 import.meta.url 또는 $CLAUDE_PLUGIN_ROOT 기반 경로를 사용하고, 사용자 데이터(.crew/state/)는 cwd 기준으로 접근한다.",
+  "successGate": [
+    "lib/crew-state.mjs가 추가되어 readRunState, writeRunState, createCheckpoint, getLatestCheckpoint helper가 동작한다",
+    "scripts/crew-pre-compact.mjs가 추가되어 PreCompact hook으로 checkpoint 저장 및 systemMessage를 반환한다",
+    "scripts/crew-context-guard-stop.mjs가 추가되어 Stop hook으로 context guard가 동작한다",
+    "scripts/crew-session-restore.mjs가 추가되어 SessionStart restore context를 주입한다",
+    "hooks/hooks.json에 PreCompact, Stop, SessionStart 항목이 추가되었다",
+    "테스트가 추가되어 통과한다",
+    "변경 파일, 검증 결과, 남은 리스크를 AgentResult artifact에 보고했다"
+  ],
+  "failureHandling": "요구사항이 불명확하거나 범위가 커지면 blocked_on_user를 반환한다. 실행 중 실패가 있으면 수정 후 재검증하고, 계속 진행할 수 없을 때 failed를 반환한다."
+}

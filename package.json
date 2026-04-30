@@ -19,6 +19,7 @@
     ".claude-plugin/",
     "agents/",
     "data/",
+    "lib/",
     "skills/",
     "hooks/",
     "hud/",
