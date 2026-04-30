@@ -216,9 +216,9 @@ output:
 
 role instructions:
 - **4a. 최종 판정**: CodeReviewer PASS와 QA PASS가 모두 충족될 때만 완료 처리한다. 하나라도 FAIL이면 Phase 3 failure handling을 적용한다.
-- **4b. PR 생성**: US 단위 커밋은 Phase 2에서 이미 완료되었으므로 추가 커밋은 만들지 않는다. 현재 브랜치를 push하고 PR을 생성한다.
+- **4b. 최종 checkpoint**: Phase 3에서 저장한 최종 보고서(`final-review-report.md`, `final-qa-report.md`)와 `contract.md` 상태를 `DONE`으로 갱신한 뒤, push 전에 `node "$CLAUDE_PLUGIN_ROOT/scripts/crew-agent-runner.mjs" checkpoint --message "chore(crew-dev): {task-id} final"` 를 실행하여 모든 산출물을 커밋한다.
+- **4c. PR 생성**: 현재 브랜치를 push하고 PR을 생성한다.
 - PR 본문에는 구현 요약, 완료한 US 목록, 검증 결과, 최종 보고서 위치를 포함한다.
-- PR 생성 후 `contract.md` 상태를 `DONE`으로 갱신한다.
 
 success gate:
 - 원격 브랜치가 push되었다.

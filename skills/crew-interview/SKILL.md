@@ -450,7 +450,7 @@ spec.md를 작성했습니다. 검토해주세요.
 
 ## 워크플로우 완료 시 checkpoint
 
-오케스트레이터가 COMPLETE 또는 ABORTED를 반환하기 직전에, 워크플로우 중 생성된 모든 산출물(brief.md, spec.md, request-file 등)을 checkpoint 커밋한다.
+오케스트레이터가 COMPLETE, ABORTED, 또는 ESCALATE를 반환하기 직전에, 워크플로우 중 생성된 모든 산출물(brief.md, spec.md, request-file 등)을 checkpoint 커밋한다.
 
 ```
 node "$CLAUDE_PLUGIN_ROOT/scripts/crew-agent-runner.mjs" checkpoint --message "chore(crew-interview): {task-id} complete"

@@ -152,7 +152,7 @@ active task와 연결된 경우:
 active task가 없는 경우:
 - `.crew/runs/{run-id}/result.md`에 결과를 저장한다.
 
-dispatch가 `complete`로 완료되면 자동으로 checkpoint 커밋을 생성한다. 오케스트레이터의 후처리(result.md 저장, task log 업데이트) 후에도 커밋되지 않은 변경이 남아 있으면 `node "$CLAUDE_PLUGIN_ROOT/scripts/crew-agent-runner.mjs" checkpoint --message "chore(crew-do): {run-id} result"` 로 추가 checkpoint를 실행한다.
+dispatch 경로(`action == dispatch`)에서 `complete`로 완료되면 자동으로 checkpoint 커밋을 생성한다. agent 경로(`action == agent`)에서는 자동 checkpoint가 없으므로, 오케스트레이터가 결과 처리 후 `node "$CLAUDE_PLUGIN_ROOT/scripts/crew-agent-runner.mjs" checkpoint --message "chore(crew-do): {run-id} complete"` 를 직접 호출한다. 어느 경로든 오케스트레이터의 후처리(result.md 저장, task log 업데이트) 후에도 커밋되지 않은 변경이 남아 있으면 추가 checkpoint를 실행한다.
 
 `blocked_on_user`이면 questions를 사용자에게 전달하고, 답변을 받은 뒤 runner의 followup 절차로 같은 dev 실행에 주입한다.
 
