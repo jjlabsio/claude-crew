@@ -1,6 +1,18 @@
 # Changelog
 
 
+## v0.1.44
+
+[compare changes](https://github.com/jjlabsio/claude-crew/compare/v0.1.43...v0.1.44)
+
+### 🩹 Fixes
+
+- Persist-artifact 템플릿 치환 및 워크플로우 checkpoint 구조화 ([#43](https://github.com/jjlabsio/claude-crew/pull/43), [#45](https://github.com/jjlabsio/claude-crew/pull/45))
+
+### ❤️ Contributors
+
+- Jaejin Song ([@jjlabsio](https://github.com/jjlabsio))
+
 ## v0.1.43
 
 [compare changes](https://github.com/jjlabsio/claude-crew/compare/v0.1.42...v0.1.43)
