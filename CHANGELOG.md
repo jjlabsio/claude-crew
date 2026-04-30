@@ -1,6 +1,18 @@
 # Changelog
 
 
+## v0.1.45
+
+[compare changes](https://github.com/jjlabsio/claude-crew/compare/v0.1.44...v0.1.45)
+
+### 🩹 Fixes
+
+- AUTO_GIT_DIFF 플레이스홀더를 실제 git diff로 치환 ([#44](https://github.com/jjlabsio/claude-crew/pull/44), [#47](https://github.com/jjlabsio/claude-crew/pull/47))
+
+### ❤️ Contributors
+
+- Jaejin Song ([@jjlabsio](https://github.com/jjlabsio))
+
 ## v0.1.44
 
 [compare changes](https://github.com/jjlabsio/claude-crew/compare/v0.1.43...v0.1.44)
