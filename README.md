@@ -1,156 +1,172 @@
 # Claude Crew
 
-1인 SaaS 개발자를 위한 Claude Code 멀티 에이전트 오케스트레이션 플러그인.
+A Claude Code multi-agent orchestration plugin for solo SaaS developers.
 
-## 파이프라인
+[한국어](README.ko.md)
+
+## Pipeline
 
 ```
 crew-interview → crew-plan → crew-dev
    WHAT            HOW         DO
 ```
 
-| 단계 | 역할 | 산출물 |
-|------|------|--------|
-| **crew-interview** | 무엇을 만드는가 — 요구사항 인터뷰, 제품 설계 | spec.md |
-| **crew-plan** | 어떻게 만드는가 — 기술 분석, 태스크 분해 | contract.md |
-| **crew-dev** | 만든다 — 구현, 코드 리뷰, QA | 동작하는 코드 + PR |
+| Stage | Role | Output |
+|-------|------|--------|
+| **crew-interview** | What to build — requirements interview, product design | spec.md |
+| **crew-plan** | How to build it — technical analysis, task decomposition | contract.md |
+| **crew-dev** | Build it — implementation, code review, QA | working code + PR |
 
-## 설치
+## Installation
 
-Claude Code에서:
+In Claude Code:
 
 ```
 /plugin marketplace add jjlabsio/claude-crew
 /plugin install claude-crew
 ```
 
-또는 로컬에서 직접:
+Or install locally:
 
 ```
 /plugin install /path/to/claude-crew
 ```
 
-## 초기 설정
+## Initial Setup
 
-설치 후 반드시 한 번 실행:
+Run once after installation:
 
 ```
 /crew-setup
 ```
 
-- `.gitignore` / `.gitattributes` 마이그레이션 (`.crew/` git tracked 전환)
-- HUD statusline 설치
-- 에이전트별 provider/model 설정
+- `.gitignore` / `.gitattributes` migration (`.crew/` git tracked)
+- HUD statusline installation
+- Per-agent provider/model configuration
 
-## 사용
+## Usage
 
-### 개발 파이프라인
+### Development Pipeline
 
 ```
 /crew
 ```
 
-오케스트레이터가 시작되고 현황을 브리핑합니다.
+The orchestrator starts and briefs the current status.
 
-### 간단 작업 즉시 위임
-
-```
-/crew-do "로그인 에러 메시지 정리"
-/crew-do                         # active task가 있으면 해당 task를 실행
-```
-
-`/crew-do`는 기존 Dev 에이전트를 `direct` 모드로 호출해 작은 수정, 버그픽스, 테스트 실패 수정처럼 범위가 명확한 작업을 바로 위임합니다. Dev 기본 provider가 Codex이면 실제 코드 탐색, 수정, 검증은 Codex runtime에서 수행되고 Claude는 결과 요약과 후속 조율만 담당합니다.
-
-`/task`는 계속 기억/queue 관리 전용입니다. 저장된 태스크를 실행하려면 `/task work {id}`로 active 상태로 만든 뒤 `/crew-do`를 실행합니다.
-
-### 태스크 관리
+### Quick Task Delegation
 
 ```
-/task add "설명"          # 태스크 추가 (대화 컨텍스트 자동 캡처)
-/task add "설명" --next   # 긴급 — queue 맨 위 삽입
-/task work 3              # 태스크 #3 작업 시작 (관련 파일 Read + 브리핑)
-/task start               # queue 최상단 태스크 작업 시작
-/task done                # active 태스크 완료 처리
-/task bump 4              # 우선순위 한 칸 올리기
-/task top 7               # queue 맨 위로 이동
-/task note 3 "메모"       # 태스크에 메모 추가
-/task drop 3              # 태스크 삭제
-
-/tasks                    # 프로젝트 태스크 보드
-/tasks stale              # 30일+ 방치 태스크 리뷰
-/tasks clean              # 완료 후 7일 경과 태스크 정리
+/crew-do "clean up login error messages"
+/crew-do                         # runs the active task if one exists
 ```
 
-태스크는 `.crew/tasks/` 디렉토리에 개별 파일로 관리된다. 각 파일이 상태, 우선순위, 컨텍스트를 포함하여 세션 간 작업 재개 시 컨텍스트 재입력이 불필요하다.
+`/crew-do` invokes the Dev agent in `direct` mode for small fixes, bug patches, and clearly scoped tasks. If Dev's default provider is Codex, code exploration, editing, and verification happen inside the Codex runtime; Claude handles only result summarization and follow-up coordination.
 
-## 에이전트 팀
+`/task` remains dedicated to memory/queue management. To execute a saved task, mark it active with `/task work {id}` then run `/crew-do`.
 
-| 에이전트 | 역할 | 소속 스킬 |
-|---------|------|----------|
-| **오케스트레이터** | 유저와 대화, 위임 판단, 파이프라인 진행 | 전체 |
-| **Explorer** | 코드베이스 탐색 (read-only) | interview, plan |
-| **Researcher** | 외부 리서치 (WebSearch) | interview, plan |
-| **TechLead** | 기술 분석, 아키텍처 방향 판단 | plan |
-| **Planner** | 태스크 분해, 구현 계획 | plan |
-| **PlanEvaluator** | 계획 검증 (하드 임계값) | plan |
-| **Dev** | 코드 구현 | dev |
-| **CodeReviewer** | 코드 리뷰 | dev |
-| **QA** | 실행 검증 | dev |
+### Task Management
 
-## 두 가지 사용 모드
+```
+/task add "description"          # add a task (captures conversation context)
+/task add "description" --next   # urgent — insert at top of queue
+/task work 3                     # start working on task #3 (reads related files + briefs)
+/task start                      # start working on the top-priority task
+/task done                       # mark active task complete
+/task bump 4                     # raise priority by one
+/task top 7                      # move to top of queue
+/task note 3 "note"              # add a note to a task
+/task drop 3                     # delete a task
 
-claude-crew는 **다른 프로젝트에 설치되어 사용되는 플러그인**이다. 두 가지 모드로 구분된다.
+/tasks                           # project task board
+/tasks stale                     # review tasks untouched for 30+ days
+/tasks clean                     # clean up tasks completed 7+ days ago
+```
 
-### 사용자 모드
+Tasks are managed as individual files in `.crew/tasks/`. Each file carries state, priority, and context so work can resume across sessions without re-entering context.
 
-이 plugin을 자기 프로젝트에 설치해서 SaaS 개발에 활용하는 일반 사용자.
+## Agent Team
 
-- 직접 호출하는 슬래시 명령: `/crew`, `/crew-setup`, `/crew-do`, `/task`, `/tasks`, `/crew-interview`, `/crew-plan`, `/crew-dev`.
-- 디버그용 직접 호출 가능 명령: `node scripts/crew-agent-runner.mjs resolve --role <role> --json` (provider/model/contract 통합 표 확인).
-- plugin이 설치된 위치(`~/.claude/plugins/...` 등)에 무관하게 동작 — plugin script가 자기 위치를 자동으로 인식.
+| Agent | Role | Used in |
+|-------|------|---------|
+| **Orchestrator** | Talks with the user, decides delegation, drives the pipeline | all |
+| **Explorer** | Codebase exploration (read-only) | interview, plan |
+| **Researcher** | External research (WebSearch) | interview, plan |
+| **TechLead** | Technical analysis, architecture direction | plan |
+| **Planner** | Task decomposition, implementation planning | plan |
+| **PlanEvaluator** | Plan validation (hard thresholds) | plan |
+| **Dev** | Code implementation | dev |
+| **CodeReviewer** | Code review | dev |
+| **QA** | Execution verification | dev |
 
-### 개발자 모드
+## Two Modes
 
-claude-crew 자체를 개발하는 사람 (이 repo 안에서 작업).
+claude-crew is a **plugin installed into other projects**. It operates in two distinct modes.
 
-- `node scripts/crew-agent-runner.mjs build`: contracts/instructions에서 `agents/{role}.md` + `plugin.json` agents 배열 derive.
-- `node scripts/crew-agent-runner.mjs validate`: build 결과와 현재 파일 정합성 검사 + sandbox 정합성 검증.
-- `node scripts/crew-agent-runner.mjs install-hooks`: pre-commit hook 설치 (drift 차단).
+### User Mode
 
-위 세 명령은 **plugin source repo 안에서만 동작**한다. 사용자 환경에서 호출하면 가드로 차단된다 (`.claude-plugin/plugin.json` + `package.json.name === "@jjlabsio/claude-crew"` 감지). 사용자에게는 의미 없는 명령이므로 정상이다.
+General users who install this plugin into their own project for SaaS development.
 
-## 모델 설정
+- Slash commands to invoke directly: `/crew`, `/crew-setup`, `/crew-do`, `/task`, `/tasks`, `/crew-interview`, `/crew-plan`, `/crew-dev`.
+- Debug command: `node scripts/crew-agent-runner.mjs resolve --role <role> --json` (shows combined provider/model/contract table).
+- Works regardless of where the plugin is installed (`~/.claude/plugins/...` etc.) — the plugin script auto-detects its own location.
 
-`/crew-setup`에서 에이전트별 provider/model을 설정합니다. 설정하지 않은 에이전트는 `data/provider-catalog.json`의 `agent_defaults`를 따릅니다.
+### Developer Mode
 
-기본값은 기존 에이전트 frontmatter 모델을 따르되, Dev와 CodeReviewer는 Codex `gpt-5.5 medium`을 사용합니다. Claude 모델은 `opus`, `sonnet`, `haiku` latest alias와 `claude-opus-4-7` 같은 버전 고정 ID를 모두 선택할 수 있습니다.
+People developing claude-crew itself (working inside this repo).
 
-Claude provider는 Claude Code `Agent`로 실행하고, Codex provider는 플러그인에 내장된 `scripts/crew-codex-companion.mjs` app-server runtime으로 실행합니다. 에이전트가 유저 질문이나 다른 에이전트 호출이 필요하면 직접 처리하지 않고 오케스트레이터가 이어받아 실행합니다.
+- `node scripts/crew-agent-runner.mjs build`: derives `agents/{role}.md` + `plugin.json` agents array from contracts/instructions.
+- `node scripts/crew-agent-runner.mjs validate`: checks build output against source files + sandbox consistency.
+- `node scripts/crew-agent-runner.mjs install-hooks`: installs pre-commit hook (prevents drift).
 
-Provider와 무관하게 에이전트 결과는 `complete`, `blocked_on_user`, `needs_agent`, `needs_tool`, `failed` 상태 중 하나로 해석합니다. Claude Code 전용 도구가 필요한 경우에도 Codex provider는 요청 상태를 반환하고, 실제 도구 실행은 오케스트레이터가 담당합니다.
+These commands **only work inside the plugin source repo**. They are blocked when called from a user environment (detected via `.claude-plugin/plugin.json` + `package.json.name === "@jjlabsio/claude-crew"`).
 
-## 상태 파일
+## Model Configuration
 
-프로젝트 로컬 `.crew/` 디렉토리에 마크다운 파일로 상태를 관리합니다 (git tracked). 플러그인 업데이트 시에도 학습 내용과 상태는 보존됩니다.
+Configure per-agent provider/model via `/crew-setup`. Agents without explicit configuration fall back to `agent_defaults` in `data/provider-catalog.json`.
+
+Default recommendations are grouped by the nature of each agent's role:
+
+| Agent | Provider | Model | Reasoning | Role type |
+|-------|----------|-------|-----------|-----------|
+| `techlead` | codex | gpt-5.5 | high | Judgment — architecture direction |
+| `code-reviewer` | codex | gpt-5.5 | high | Judgment — code quality assessment |
+| `pm` | codex | gpt-5.5 | medium | Planning — requirements gathering |
+| `planner` | codex | gpt-5.5 | medium | Planning — implementation planning |
+| `dev` | codex | gpt-5.5 | medium | Planning — code implementation |
+| `plan-evaluator` | codex | gpt-5.4-mini | high | Execution — plan threshold checks |
+| `qa` | codex | gpt-5.4-mini | high | Execution — build/test verification |
+| `researcher` | codex | gpt-5.4-mini | high | Execution — external research |
+| `explorer` | codex | gpt-5.3-codex-spark | low | Exploration — codebase search |
+
+For Claude models, both latest aliases (`opus`, `sonnet`, `haiku`) and pinned version IDs like `claude-opus-4-7` are supported.
+
+The Claude provider runs agents via Claude Code's `Agent` tool. The Codex provider runs via the bundled `scripts/crew-codex-companion.mjs` app-server runtime. When an agent needs to ask the user a question or invoke another agent, it does not handle this directly — the orchestrator takes over.
+
+Regardless of provider, agent results are interpreted as one of: `complete`, `blocked_on_user`, `needs_agent`, `needs_tool`, or `failed`. Even when a Claude Code-specific tool is required, the Codex provider returns a request status and the orchestrator handles the actual tool execution.
+
+## State Files
+
+State is managed as Markdown files in the project-local `.crew/` directory (git tracked). Learning and state are preserved across plugin updates.
 
 ```
 .crew/
-  config.json          # provider 설정 (gitignored)
-  tasks/               # 태스크 파일 (1개 = 1파일)
-  plans/               # 파이프라인 산출물 (spec, contract, dev-log, review)
+  config.json          # provider configuration (gitignored)
+  tasks/               # task files (one file per task)
+  plans/               # pipeline artifacts (spec, contract, dev-log, review)
 ```
 
-## 설계 철학
+## Design Philosophy
 
-**역할별 관점은 유지하되, 정보는 제한하지 않는다.**
+**Preserve per-role perspective; do not restrict information.**
 
-각 에이전트는 특정 관점(기획/기술/구현)에서 사고하지만, 활용할 수 있는 정보(코드 포함)는 제한하지 않는다. 실제 회사의 역할 분리를 모방하는 것이 아니라, 빠뜨리는 관점이 없도록 구조화된 사고를 강제하는 것이 목적이다.
+Each agent thinks from a specific viewpoint (product / technical / implementation), but the information it can use (including code) is not restricted. The goal is not to mimic real-world org chart separation, but to enforce structured thinking so no perspective is missed.
 
-### 기타 원칙
+### Other Principles
 
-- [Anthropic 하네스 설계 아티클](https://www.anthropic.com/engineering/harness-design)을 최우선 레퍼런스로 따름
-- 가능한 단순하게 시작하고 필요할 때만 복잡성을 높임
-- 모델이 발전하면 불필요해진 구성 요소를 제거
+- [Anthropic harness design article](https://www.anthropic.com/engineering/harness-design) is the primary reference
+- Start as simple as possible; add complexity only when needed
+- Remove components that become unnecessary as models improve
 
 ## License
 
