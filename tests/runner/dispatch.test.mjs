@@ -1,6 +1,7 @@
 import { mkdir, readFile, writeFile } from "node:fs/promises";
-import { join, resolve } from "node:path";
+import { dirname, join, resolve } from "node:path";
 import { spawnSync } from "node:child_process";
+import { fileURLToPath } from "node:url";
 
 import { afterEach, describe, expect, test } from "vitest";
 
@@ -9,6 +10,8 @@ import {
   dispatch,
   resolveAutoGitDiffInputs
 } from "../../scripts/lib/dispatch.mjs";
+
+const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..", "..");
 
 let tmpDir;
 
@@ -44,18 +47,32 @@ async function writeRequest(request = requestFixture()) {
   return requestPath;
 }
 
+async function writeProjectConfig(config) {
+  await mkdir(join(tmpDir, ".crew"), { recursive: true });
+  await writeFile(join(tmpDir, ".crew", "config.json"), JSON.stringify(config), "utf8");
+}
+
+async function writeDevCodexProjectConfig() {
+  await writeProjectConfig({
+    providers: {
+      dev: { provider: "codex", model: "gpt-5.5", reasoning: "medium" }
+    }
+  });
+}
+
 function runDispatch(args, env = {}, options = {}) {
   return spawnSync(
     process.execPath,
-    [resolve("scripts/crew-agent-runner.mjs"), "dispatch", ...args],
+    [join(REPO_ROOT, "scripts", "crew-agent-runner.mjs"), "dispatch", ...args],
     {
       cwd: options.cwd ?? process.cwd(),
       encoding: "utf8",
       env: {
         ...process.env,
-        CREW_COMPANION_NODE_BIN: resolve("tests/_helpers/fakeCompanion.mjs"),
+        CREW_COMPANION_NODE_BIN: resolve(REPO_ROOT, "tests/_helpers/fakeCompanion.mjs"),
         ...env
-      }
+      },
+      ...options
     }
   );
 }
@@ -91,11 +108,13 @@ describe("crew-agent-runner dispatch CLI", () => {
 
   test("runs companion with a prompt file and returns AgentResult with agent_handle", async () => {
     const requestPath = await writeRequest();
+    await writeDevCodexProjectConfig();
     const logPath = join(tmpDir, "fake-companion.log");
 
     const result = runDispatch(
       ["--role", "dev", "--request-file", requestPath, "--json", "--no-checkpoint"],
-      { FAKE_COMPANION_RESPONSE: "complete", FAKE_COMPANION_LOG: logPath }
+      { FAKE_COMPANION_RESPONSE: "complete", FAKE_COMPANION_LOG: logPath },
+      { cwd: tmpDir }
     );
 
     expect(result.status).toBe(0);
@@ -145,16 +164,9 @@ describe("crew-agent-runner dispatch CLI", () => {
 
   test("rejects claude provider roles with a dispatch-specific usage error", async () => {
     const requestPath = await writeRequest();
-    await mkdir(join(tmpDir, ".crew"), { recursive: true });
-    await writeFile(
-      join(tmpDir, ".crew", "config.json"),
-      JSON.stringify({
-        agent_defaults: {
-          qa: { provider: "claude", model: "sonnet" }
-        }
-      }),
-      "utf8"
-    );
+    await writeProjectConfig({
+      providers: { qa: { provider: "claude", model: "sonnet" } }
+    });
 
     const result = runDispatch(
       ["--role", "qa", "--request-file", requestPath, "--json"],
@@ -171,11 +183,13 @@ describe("crew-agent-runner dispatch CLI", () => {
 
   test("adds --write for workspace-write roles and preserves failed AgentResult on stdout", async () => {
     const requestPath = await writeRequest();
+    await writeDevCodexProjectConfig();
     const logPath = join(tmpDir, "fake-companion.log");
 
     const result = runDispatch(
       ["--role", "dev", "--request-file", requestPath, "--json"],
-      { FAKE_COMPANION_RESPONSE: "failed", FAKE_COMPANION_LOG: logPath }
+      { FAKE_COMPANION_RESPONSE: "failed", FAKE_COMPANION_LOG: logPath },
+      { cwd: tmpDir }
     );
 
     expect(result.status).toBe(1);
@@ -296,6 +310,7 @@ describe("crew-agent-runner dispatch CLI", () => {
 
   test("uses --resume-last only when resume candidate matches requested handle", async () => {
     const requestPath = await writeRequest();
+    await writeDevCodexProjectConfig();
     const logPath = join(tmpDir, "fake-companion.log");
 
     const result = runDispatch(
@@ -309,7 +324,8 @@ describe("crew-agent-runner dispatch CLI", () => {
         "--json",
         "--no-checkpoint"
       ],
-      { FAKE_COMPANION_RESPONSE: "resumeCandidate", FAKE_COMPANION_LOG: logPath }
+      { FAKE_COMPANION_RESPONSE: "resumeCandidate", FAKE_COMPANION_LOG: logPath },
+      { cwd: tmpDir }
     );
 
     expect(result.status).toBe(0);
@@ -322,6 +338,7 @@ describe("crew-agent-runner dispatch CLI", () => {
 
   test("rejects a resume handle that is not the companion candidate", async () => {
     const requestPath = await writeRequest();
+    await writeDevCodexProjectConfig();
 
     const result = runDispatch(
       [
@@ -333,7 +350,8 @@ describe("crew-agent-runner dispatch CLI", () => {
         "thread-other",
         "--json"
       ],
-      { FAKE_COMPANION_RESPONSE: "resumeCandidate" }
+      { FAKE_COMPANION_RESPONSE: "resumeCandidate" },
+      { cwd: tmpDir }
     );
 
     expect(result.status).toBe(1);
@@ -343,10 +361,12 @@ describe("crew-agent-runner dispatch CLI", () => {
 
   test("exits non-zero with a diagnostic for crewAgentResultError", async () => {
     const requestPath = await writeRequest();
+    await writeDevCodexProjectConfig();
 
     const result = runDispatch(
       ["--role", "dev", "--request-file", requestPath, "--json"],
-      { FAKE_COMPANION_RESPONSE: "crewAgentResultError" }
+      { FAKE_COMPANION_RESPONSE: "crewAgentResultError" },
+      { cwd: tmpDir }
     );
 
     expect(result.status).toBe(1);

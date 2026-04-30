@@ -1,10 +1,13 @@
 import { spawnSync } from "node:child_process";
-import { writeFile } from "node:fs/promises";
-import { join } from "node:path";
+import { mkdir, writeFile } from "node:fs/promises";
+import { dirname, join, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
 
 import { afterEach, describe, expect, test } from "vitest";
 
 import { cleanupTmpDir, mkTmpDir } from "../_helpers/fs.mjs";
+
+const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..", "..");
 
 let tmpDir;
 
@@ -37,17 +40,25 @@ async function writeRequest() {
   return requestPath;
 }
 
-function runPrepare(args) {
+async function writeProjectConfig(config) {
+  await mkdir(join(tmpDir, ".crew"), { recursive: true });
+  await writeFile(join(tmpDir, ".crew", "config.json"), JSON.stringify(config), "utf8");
+}
+
+function runPrepare(args, options = {}) {
   return spawnSync(
     process.execPath,
-    ["scripts/crew-agent-runner.mjs", "prepare", ...args],
-    { encoding: "utf8" }
+    [join(REPO_ROOT, "scripts", "crew-agent-runner.mjs"), "prepare", ...args],
+    { encoding: "utf8", ...options }
   );
 }
 
 describe("crew-agent-runner prepare CLI", () => {
   test("returns an agent action with rendered prompt for Claude provider roles", async () => {
     const requestPath = await writeRequest();
+    await writeProjectConfig({
+      providers: { "plan-evaluator": { provider: "claude", model: "sonnet" } }
+    });
 
     const result = runPrepare([
       "--role",
@@ -55,7 +66,7 @@ describe("crew-agent-runner prepare CLI", () => {
       "--request-file",
       requestPath,
       "--json"
-    ]);
+    ], { cwd: tmpDir });
 
     expect(result.status).toBe(0);
     expect(result.stderr).toBe("");
@@ -73,6 +84,11 @@ describe("crew-agent-runner prepare CLI", () => {
 
   test("returns a dispatch action for Codex provider roles", async () => {
     const requestPath = await writeRequest();
+    await writeProjectConfig({
+      providers: {
+        dev: { provider: "codex", model: "gpt-5.5", reasoning: "medium" }
+      }
+    });
 
     const result = runPrepare([
       "--role",
@@ -80,7 +96,7 @@ describe("crew-agent-runner prepare CLI", () => {
       "--request-file",
       requestPath,
       "--json"
-    ]);
+    ], { cwd: tmpDir });
 
     expect(result.status).toBe(0);
     expect(result.stderr).toBe("");
@@ -90,7 +106,7 @@ describe("crew-agent-runner prepare CLI", () => {
       action: "dispatch",
       command: [
         "node",
-        join(process.cwd(), "scripts", "crew-agent-runner.mjs"),
+        join(REPO_ROOT, "scripts", "crew-agent-runner.mjs"),
         "dispatch",
         "--role",
         "dev",
@@ -103,12 +119,17 @@ describe("crew-agent-runner prepare CLI", () => {
 
   test("prints the dispatch command in text mode", async () => {
     const requestPath = await writeRequest();
+    await writeProjectConfig({
+      providers: {
+        dev: { provider: "codex", model: "gpt-5.5", reasoning: "medium" }
+      }
+    });
 
-    const result = runPrepare(["--role", "dev", "--request-file", requestPath]);
+    const result = runPrepare(["--role", "dev", "--request-file", requestPath], { cwd: tmpDir });
 
     expect(result.status).toBe(0);
     expect(result.stdout).toBe(
-      `node ${join(process.cwd(), "scripts", "crew-agent-runner.mjs")} dispatch --role dev --request-file ${requestPath} --json\n`
+      `node ${join(REPO_ROOT, "scripts", "crew-agent-runner.mjs")} dispatch --role dev --request-file ${requestPath} --json\n`
     );
   });
 });

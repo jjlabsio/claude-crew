@@ -7,7 +7,36 @@
         "hooks": [
           {
             "type": "command",
+            "command": "node \"$CLAUDE_PLUGIN_ROOT/scripts/crew-session-restore.mjs\"",
+            "timeout": 5
+          },
+          {
+            "type": "command",
             "command": "node \"$CLAUDE_PLUGIN_ROOT/scripts/setup-hud.mjs\"",
+            "timeout": 5
+          }
+        ]
+      }
+    ],
+    "PreCompact": [
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"$CLAUDE_PLUGIN_ROOT/scripts/crew-pre-compact.mjs\"",
+            "timeout": 10
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"$CLAUDE_PLUGIN_ROOT/scripts/crew-context-guard-stop.mjs\"",
             "timeout": 5
           }
         ]
