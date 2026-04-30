@@ -50,7 +50,7 @@ crew-plan의 모든 에이전트 실행은 역할이나 step과 무관하게 아
 
 1. `{ role, taskId, inputs, instruction, successGate, failureHandling }` 형태의 `request-file`을 작성한다.
 2. `node "$CLAUDE_PLUGIN_ROOT/scripts/crew-agent-runner.mjs" prepare --role <role> --request-file <request-file> --json`을 실행한다.
-3. `action == dispatch`이면 prepare가 반환한 command를 실행하고 AgentResult를 처리한다.
+3. `action == dispatch`이면 prepare가 반환한 command에 `--no-checkpoint`를 추가하여 실행하고 AgentResult를 처리한다. crew-plan은 다단계 워크플로우이므로 dispatch 자동 체크포인트를 사용하지 않고 워크플로우 완료 시 한 번만 checkpoint한다.
 4. `action == agent`이면 prepare가 반환한 `subagent_type`, `model`, `prompt`로 runner 계약의 Claude 경로를 실행하고 AgentResult로 정규화한다.
 
 이 순서를 생략하고 직접 하위 에이전트를 호출하지 않는다.
@@ -360,6 +360,16 @@ Planner + PlanEvaluator 사이클은 최대 5회 (초기 1회 + retry 최대 4�
 | Step 4 | plan-evaluator | spec.md + analysis.md + plan.md | brief.md | review.md |
 
 후속 탐색, 외부 조사, 사용자 질문, 재개 흐름은 runner가 정의한 상태 처리와 followup 계약을 따른다. 각 역할은 complete 상태의 artifact로 산출물 본문을 반환해야 한다.
+
+---
+
+## 워크플로우 완료 시 checkpoint
+
+오케스트레이터가 COMPLETE 또는 ESCALATE를 반환하기 직전에, 워크플로우 중 생성된 모든 산출물(analysis.md, plan.md, review.md, contract.md, request-file 등)을 checkpoint 커밋한다.
+
+```
+node "$CLAUDE_PLUGIN_ROOT/scripts/crew-agent-runner.mjs" checkpoint --message "chore(crew-plan): {task-id} complete"
+```
 
 ---
 

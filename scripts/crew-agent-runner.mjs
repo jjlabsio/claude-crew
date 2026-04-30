@@ -13,6 +13,7 @@ import {
   persistCrewArtifact,
   ArtifactPersistError
 } from "./lib/artifacts.mjs";
+import { checkpoint, CheckpointError } from "./lib/checkpoint.mjs";
 import {
   dispatch,
   DispatchError,
@@ -48,6 +49,10 @@ async function main(argv) {
 
   if (command === "persist-artifact") {
     return persistArtifactCommand(flags);
+  }
+
+  if (command === "checkpoint") {
+    return checkpointCommand(flags);
   }
 
   if (command === "render-followup") {
@@ -332,7 +337,8 @@ async function dispatchCommand(flags) {
       request,
       resolved,
       contract: resolved.contract,
-      resumeHandle: flags["resume-handle"]
+      resumeHandle: flags["resume-handle"],
+      noCheckpoint: flags["no-checkpoint"] === true
     });
 
     writeDispatchResult(agentResult, flags);
@@ -347,6 +353,33 @@ async function dispatchCommand(flags) {
     }
     console.error(error.message);
     return error instanceof DispatchError ? error.exitCode : 1;
+  }
+}
+
+async function checkpointCommand(flags) {
+  if (typeof flags.message !== "string" || flags.message.length === 0) {
+    console.error("Missing required --message <text>");
+    return 1;
+  }
+
+  try {
+    const result = await checkpoint({ message: flags.message });
+
+    if (flags.json) {
+      process.stdout.write(`${JSON.stringify(result, null, 2)}\n`);
+    } else if (result.committed) {
+      process.stdout.write(`${result.hash} ${result.message}\n`);
+    } else {
+      process.stdout.write("Nothing to commit.\n");
+    }
+    return 0;
+  } catch (error) {
+    if (error instanceof CheckpointError) {
+      console.error(error.message);
+      return 1;
+    }
+    console.error(error.message);
+    return 1;
   }
 }
 
@@ -437,10 +470,13 @@ function usage() {
     "       crew-agent-runner render-followup --previous-result <file> --new-input <file>"
   );
   console.error(
-    "       crew-agent-runner dispatch --role <name> --request-file <path> [--json] [--resume-handle <thread-id>]"
+    "       crew-agent-runner dispatch --role <name> --request-file <path> [--json] [--resume-handle <thread-id>] [--no-checkpoint]"
   );
   console.error(
     "       crew-agent-runner persist-artifact --role <name> --result-file <path> --request-file <path>"
+  );
+  console.error(
+    "       crew-agent-runner checkpoint --message <text> [--json]"
   );
 }
 

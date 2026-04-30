@@ -152,6 +152,8 @@ active task와 연결된 경우:
 active task가 없는 경우:
 - `.crew/runs/{run-id}/result.md`에 결과를 저장한다.
 
+dispatch 경로(`action == dispatch`)에서 `complete`로 완료되면 자동으로 checkpoint 커밋을 생성한다. agent 경로(`action == agent`)에서는 자동 checkpoint가 없으므로, 오케스트레이터가 결과 처리 후 `node "$CLAUDE_PLUGIN_ROOT/scripts/crew-agent-runner.mjs" checkpoint --message "chore(crew-do): {run-id} complete"` 를 직접 호출한다. 어느 경로든 오케스트레이터의 후처리(result.md 저장, task log 업데이트) 후에도 커밋되지 않은 변경이 남아 있으면 추가 checkpoint를 실행한다.
+
 `blocked_on_user`이면 questions를 사용자에게 전달하고, 답변을 받은 뒤 runner의 followup 절차로 같은 dev 실행에 주입한다.
 
 `needs_agent` 또는 `needs_tool`이면 중앙 runner 계약에 따라 오케스트레이터가 처리한다.
@@ -163,7 +165,7 @@ active task가 없는 경우:
 - 오케스트레이터가 코드를 직접 작성하지 않는다.
 - `dev`는 필요한 탐색, 수정, 검증을 직접 수행한다.
 - 요청 범위를 넘는 리팩터링을 하지 않는다.
-- 의존성 추가, 마이그레이션, 대규모 삭제, commit, push, PR 생성은 사용자 승인 없이 하지 않는다.
+- `dev` 에이전트는 의존성 추가, 마이그레이션, 대규모 삭제, commit, push, PR 생성을 하지 않는다. 완료 시 checkpoint 커밋은 오케스트레이터의 워크플로우 동작이며 별도 승인이 필요하지 않다.
 - 검증 가능한 명령을 실행하고, 실행하지 못한 검증은 이유를 보고한다.
 - `plan.md` 또는 `contract.md`가 없다는 이유로 direct mode를 실패 처리하지 않는다.
 - 위험하거나 되돌리기 어려운 변경은 `blocked_on_user`로 중단한다.

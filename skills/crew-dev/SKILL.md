@@ -30,7 +30,7 @@ crew-dev의 모든 에이전트 실행은 역할이나 phase와 무관하게 아
 
 1. `{ role, taskId, inputs, instruction, successGate, failureHandling }` 형태의 `request-file`을 작성한다.
 2. `node "$CLAUDE_PLUGIN_ROOT/scripts/crew-agent-runner.mjs" prepare --role <role> --request-file <request-file> --json`을 실행한다.
-3. `action == dispatch`이면 prepare가 반환한 command를 실행하고 AgentResult를 처리한다.
+3. `action == dispatch`이면 prepare가 반환한 command에 `--no-checkpoint`를 추가하여 실행하고 AgentResult를 처리한다. crew-dev는 US 단위 체크포인트를 직접 관리하므로 dispatch 자동 체크포인트를 사용하지 않는다.
 4. `action == agent`이면 prepare가 반환한 `subagent_type`, `model`, `prompt`로 runner 계약의 Claude 경로를 실행하고 AgentResult로 정규화한다.
 
 이 순서를 생략하고 직접 하위 에이전트를 호출하지 않는다.
@@ -69,6 +69,8 @@ provider 선택, 런타임 선택, AgentResult 반환 형식, 후속 입력 주�
   qa-report-{n}.md          # US 단위 FAIL 시 아카이브
   final-review-report.md    # CodeReviewer: 최종 전체 리뷰 결과
   final-qa-report.md        # QA: 최종 전체 검증 결과
+  requests/                 # Dev/CodeReviewer/QA 실행 request-file 보존
+  runs/                     # Dev/CodeReviewer/QA 실행 결과/메타 보존
   .dev_loop_count           # US별 개발 루프 카운터, US PASS 시 리셋
   .dev_crash_count          # US별 구현 crash 카운터, US PASS 시 리셋
   .dev_crash_provider       # crash 발생 시 현재 사용 중인 provider 기록
@@ -150,7 +152,7 @@ role instructions:
 - **Phase 2b Step 1a — crash 감지 + retry**: Dev 실행이 비정상 종료되거나 자체 검증 결과가 불명확하면 crash로 판정한다. 오케스트레이터는 부분 변경을 마지막 체크포인트로 되돌리고 crash 카운터를 갱신한다. 동일 provider 재시도, provider fallback, 사용자 escalation은 runner 정책과 phase 카운터 규칙을 함께 적용한다.
 - **Phase 2b Step 2 — CodeReviewer + QA 병렬 검증**: CodeReviewer와 QA는 동시에 실행한다. CodeReviewer는 `.crew/` 메타 변경을 제외한 코드 변경분과 인라인 가드레일만 보고 품질을 판정한다. QA는 `plan.md` 산출물에서 현재 US의 테스트 시나리오를 확인하고 빌드, 린트, 타입 체크, 전체 테스트, 테스트 전략 준수, US 시나리오 검증을 직접 실행한다. 두 역할은 파일을 직접 작성하지 않고 결과 텍스트를 반환하며, 오케스트레이터가 각 보고서 산출물로 저장한다.
 - **Phase 2b Step 3 — 판정**: 오케스트레이터는 CodeReviewer PASS와 QA PASS가 모두 충족될 때만 US PASS로 판정한다. 하나라도 FAIL이면 US FAIL로 판정한다.
-- **Phase 2b Step 4 — 체크포인트 commit**: US PASS 즉시 전체 변경을 stage하고 `--no-verify` 옵션으로 `feat({task-id}): US-{k} {US 제목}` 커밋을 만든다. US 루프 카운터와 crash 카운터 산출물이 있으면 삭제한다.
+- **Phase 2b Step 4 — 체크포인트 commit**: US PASS 즉시 US 루프 카운터와 crash 카운터 산출물이 있으면 삭제한 뒤 `git add -A`로 전체 변경을 stage한다. 특히 `.crew/plans/{task-id}/requests/`, `.crew/plans/{task-id}/runs/`, 보고서, 카운터 파일처럼 새로 생긴 untracked 파이프라인 산출물이 체크포인트에서 누락되면 안 된다. stage 후 `git status --porcelain --untracked-files=all .crew/plans/{task-id}/`를 확인하고 출력이 남아 있으면 누락 산출물 경고와 함께 커밋하지 않고 실패 처리한다. 이상이 없을 때만 `git commit --no-verify -m "feat({task-id}): US-{k} {US 제목}"` 커밋을 만든다.
 - **Phase 2b Step 5 — FAIL 처리**: 오케스트레이터는 루프 카운터를 읽고, 상한 초과 또는 같은 기준 3회 연속 실패를 확인한다. 계속 진행 가능하면 최신 review/qa 보고서를 번호가 붙은 산출물로 아카이브하고 카운터를 증가시킨 뒤 Dev retry로 돌아간다. Dev retry에는 해당 US의 피드백만 전달한다.
 
 success gate:
@@ -214,9 +216,9 @@ output:
 
 role instructions:
 - **4a. 최종 판정**: CodeReviewer PASS와 QA PASS가 모두 충족될 때만 완료 처리한다. 하나라도 FAIL이면 Phase 3 failure handling을 적용한다.
-- **4b. PR 생성**: US 단위 커밋은 Phase 2에서 이미 완료되었으므로 추가 커밋은 만들지 않는다. 현재 브랜치를 push하고 PR을 생성한다.
+- **4b. 최종 checkpoint**: Phase 3에서 저장한 최종 보고서(`final-review-report.md`, `final-qa-report.md`)와 `contract.md` 상태를 `DONE`으로 갱신한 뒤, push 전에 `node "$CLAUDE_PLUGIN_ROOT/scripts/crew-agent-runner.mjs" checkpoint --message "chore(crew-dev): {task-id} final"` 를 실행하여 모든 산출물을 커밋한다.
+- **4c. PR 생성**: 현재 브랜치를 push하고 PR을 생성한다.
 - PR 본문에는 구현 요약, 완료한 US 목록, 검증 결과, 최종 보고서 위치를 포함한다.
-- PR 생성 후 `contract.md` 상태를 `DONE`으로 갱신한다.
 
 success gate:
 - 원격 브랜치가 push되었다.
