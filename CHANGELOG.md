@@ -1,6 +1,18 @@
 # Changelog
 
 
+## v0.1.46
+
+[compare changes](https://github.com/jjlabsio/claude-crew/compare/v0.1.45...v0.1.46)
+
+### 🚀 Enhancements
+
+- 컨텍스트 한계 도달 시 crew 워크플로우 상태 보존/복구 ([#46](https://github.com/jjlabsio/claude-crew/pull/46), [#49](https://github.com/jjlabsio/claude-crew/pull/49))
+
+### ❤️ Contributors
+
+- Jaejin Song ([@jjlabsio](https://github.com/jjlabsio))
+
 ## v0.1.45
 
 [compare changes](https://github.com/jjlabsio/claude-crew/compare/v0.1.44...v0.1.45)
