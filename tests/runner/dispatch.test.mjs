@@ -71,7 +71,7 @@ describe("crew-agent-runner dispatch CLI", () => {
     const logPath = join(tmpDir, "fake-companion.log");
 
     const result = runDispatch(
-      ["--role", "dev", "--request-file", requestPath, "--json"],
+      ["--role", "dev", "--request-file", requestPath, "--json", "--no-checkpoint"],
       { FAKE_COMPANION_RESPONSE: "complete", FAKE_COMPANION_LOG: logPath }
     );
 
@@ -154,7 +154,8 @@ describe("crew-agent-runner dispatch CLI", () => {
           role: "dev",
           capabilities: { workspaceAccess: "read-only" }
         },
-        companionBin: resolve("tests/_helpers/fakeCompanion.mjs")
+        companionBin: resolve("tests/_helpers/fakeCompanion.mjs"),
+        noCheckpoint: true
       });
     } finally {
       if (previousLogPath === undefined) {
@@ -194,7 +195,8 @@ describe("crew-agent-runner dispatch CLI", () => {
           role: "dev",
           capabilities: { workspaceAccess: "workspace-write" }
         },
-        companionBin: resolve("tests/_helpers/fakeCompanion.mjs")
+        companionBin: resolve("tests/_helpers/fakeCompanion.mjs"),
+        noCheckpoint: true
       });
     } finally {
       if (previousLogPath === undefined) {
@@ -246,7 +248,8 @@ describe("crew-agent-runner dispatch CLI", () => {
         requestPath,
         "--resume-handle",
         "thread-resume-123",
-        "--json"
+        "--json",
+        "--no-checkpoint"
       ],
       { FAKE_COMPANION_RESPONSE: "resumeCandidate", FAKE_COMPANION_LOG: logPath }
     );

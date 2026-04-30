@@ -30,7 +30,7 @@ crew-dev의 모든 에이전트 실행은 역할이나 phase와 무관하게 아
 
 1. `{ role, taskId, inputs, instruction, successGate, failureHandling }` 형태의 `request-file`을 작성한다.
 2. `node "$CLAUDE_PLUGIN_ROOT/scripts/crew-agent-runner.mjs" prepare --role <role> --request-file <request-file> --json`을 실행한다.
-3. `action == dispatch`이면 prepare가 반환한 command를 실행하고 AgentResult를 처리한다.
+3. `action == dispatch`이면 prepare가 반환한 command에 `--no-checkpoint`를 추가하여 실행하고 AgentResult를 처리한다. crew-dev는 US 단위 체크포인트를 직접 관리하므로 dispatch 자동 체크포인트를 사용하지 않는다.
 4. `action == agent`이면 prepare가 반환한 `subagent_type`, `model`, `prompt`로 runner 계약의 Claude 경로를 실행하고 AgentResult로 정규화한다.
 
 이 순서를 생략하고 직접 하위 에이전트를 호출하지 않는다.

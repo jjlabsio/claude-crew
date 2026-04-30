@@ -45,7 +45,7 @@ crew-interview의 모든 에이전트 실행은 역할이나 phase와 무관하�
 
 1. `{ role, taskId, inputs, instruction, successGate, failureHandling }` 형태의 `request-file`을 작성한다.
 2. `node "$CLAUDE_PLUGIN_ROOT/scripts/crew-agent-runner.mjs" prepare --role <role> --request-file <request-file> --json`을 실행한다.
-3. `action == dispatch`이면 prepare가 반환한 command를 실행하고 AgentResult를 처리한다.
+3. `action == dispatch`이면 prepare가 반환한 command에 `--no-checkpoint`를 추가하여 실행하고 AgentResult를 처리한다. crew-interview는 다단계 워크플로우이므로 dispatch 자동 체크포인트를 사용하지 않고 워크플로우 완료 시 한 번만 checkpoint한다.
 4. `action == agent`이면 prepare가 반환한 `subagent_type`, `model`, `prompt`로 runner 계약의 Claude 경로를 실행하고 AgentResult로 정규화한다.
 
 이 순서를 생략하고 직접 하위 에이전트를 호출하지 않는다.
@@ -445,6 +445,16 @@ spec.md를 작성했습니다. 검토해주세요.
 | Researcher | researcher | 외부 조사 | Phase 2 중 필요 시 |
 
 모든 역할 실행, 사용자 질문 대기, 추가 에이전트 요청, 실패 처리는 중앙 `crew-agent-runner` 스킬의 상태 처리 규칙을 따른다.
+
+---
+
+## 워크플로우 완료 시 checkpoint
+
+오케스트레이터가 COMPLETE 또는 ABORTED를 반환하기 직전에, 워크플로우 중 생성된 모든 산출물(brief.md, spec.md, request-file 등)을 checkpoint 커밋한다.
+
+```
+node "$CLAUDE_PLUGIN_ROOT/scripts/crew-agent-runner.mjs" checkpoint --message "chore(crew-interview): {task-id} complete"
+```
 
 ---
 

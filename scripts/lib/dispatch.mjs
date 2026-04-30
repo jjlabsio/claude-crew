@@ -5,6 +5,7 @@ import { basename, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { persistCrewArtifact, ArtifactPersistError } from "./artifacts.mjs";
+import { checkpoint } from "./checkpoint.mjs";
 import { renderPrompt } from "./render.mjs";
 
 const DEFAULT_COMPANION = fileURLToPath(
@@ -86,11 +87,20 @@ export async function dispatch(input) {
     }
 
     const artifactPath = await persistArtifactSafe(input, agentResult);
-    if (artifactPath) {
-      return { ...agentResult, artifact_path: artifactPath };
+    const result = artifactPath ? { ...agentResult, artifact_path: artifactPath } : agentResult;
+
+    if (!input.noCheckpoint && agentResult.status === "complete") {
+      const taskId = input.request?.taskId ?? input.request?.["task-id"] ?? input.request?.task_id ?? null;
+      const label = [input.role, taskId].filter(Boolean).join(" ");
+      const ckpt = await checkpointSafe(
+        `chore(crew): ${label} checkpoint`
+      );
+      if (ckpt) {
+        return { ...result, checkpoint: ckpt };
+      }
     }
 
-    return agentResult;
+    return result;
   } finally {
     await rm(tmpDir, { recursive: true, force: true });
   }
@@ -256,6 +266,14 @@ async function persistArtifactSafe(input, agentResult) {
       });
     }
     throw error;
+  }
+}
+
+async function checkpointSafe(message) {
+  try {
+    return await checkpoint({ message });
+  } catch {
+    return null;
   }
 }
 
