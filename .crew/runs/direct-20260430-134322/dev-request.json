@@ -1,0 +1,26 @@
+{
+  "role": "dev",
+  "mode": "direct",
+  "taskId": "direct-20260430-134322",
+  "inputs": [
+    {
+      "path": ".crew/runs/direct-20260430-134322/request.md",
+      "content": "# Direct Request: Fix Issue #43 — persist-artifact 산출물 누락\n\n## 문제\n\ncrew-dev Phase 2에서 체크포인트 커밋 시 파이프라인 산출물이 누락되는 버그 (GitHub Issue #43)\n\n## 두 가지 원인\n\n### (1) persist-artifact의 artifact_path에서 `{task-id}` 미치환\n\n`crew-agent-runner.mjs`의 persist-artifact 로직에서 `{task-id}` 템플릿 변수가 실제 task-id로 치환되지 않음.\n- 반환값: `\".crew/plans/{task-id}/review-report.md\"`\n- 기대값: `\".crew/plans/overview-fe/review-report.md\"`\n\n### (2) requests/, runs/ 디렉토리가 체크포인트 커밋에 자동 포함되지 않음\n\nDev/CR/QA 에이전트 실행 시 `.crew/plans/{task-id}/requests/`와 `.crew/plans/{task-id}/runs/`에 파일이 생성되지만 untracked 상태로 남아 체크포인트 커밋에서 누락됨. 경고 없음.\n\n## 작업 범위\n\n1. `crew-agent-runner.mjs`에서 persist-artifact 로직의 `{task-id}` 치환 누락 원인을 찾아 수정\n2. 체크포인트 커밋 시 `.crew/plans/{task-id}/` 하위 untracked 파일(requests/, runs/ 등)이 포함되도록 수정하거나 경고 추가\n3. 관련 테스트가 있으면 업데이트, 없으면 추가 고려\n4. 그 외 누락 가능한 산출물 경로가 있는지 전수 점검\n\n## 관련 컴포넌트\n\n- `scripts/crew-agent-runner.mjs` (persist-artifact, dispatch)\n- crew-dev 스킬 (Phase 2 체크포인트 커밋)"
+    },
+    {
+      "path": "request.mode",
+      "content": "direct"
+    },
+    {
+      "path": "request.task",
+      "content": "GitHub Issue #43의 두 가지 원인을 파악하고 수정하라: (1) persist-artifact의 {task-id} 미치환 (2) 체크포인트 커밋 시 untracked 파이프라인 산출물 누락"
+    }
+  ],
+  "instruction": "Direct mode로 수행하라. 사용자 요청을 작은 작업 계약으로 보고 직접 탐색, 수정, 검증한다.",
+  "successGate": [
+    "요청된 작업이 완료되었다",
+    "관련 검증 명령을 실행했다",
+    "변경 파일, 검증 결과, 남은 리스크를 AgentResult artifact에 보고했다"
+  ],
+  "failureHandling": "요구사항이 불명확하거나 범위가 커지면 blocked_on_user를 반환한다. 실행 중 실패가 있으면 수정 후 재검증하고, 계속 진행할 수 없을 때 failed를 반환한다."
+}
