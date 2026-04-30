@@ -1,6 +1,18 @@
 # Changelog
 
 
+## v0.1.41
+
+[compare changes](https://github.com/jjlabsio/claude-crew/compare/v0.1.40...v0.1.41)
+
+### 🩹 Fixes
+
+- **runner:** Read-only 에이전트 artifact를 runner가 대신 저장 ([#39](https://github.com/jjlabsio/claude-crew/pull/39), [#40](https://github.com/jjlabsio/claude-crew/pull/40))
+
+### ❤️ Contributors
+
+- Jaejin Song ([@jjlabsio](https://github.com/jjlabsio))
+
 ## v0.1.40
 
 [compare changes](https://github.com/jjlabsio/claude-crew/compare/v0.1.39...v0.1.40)
