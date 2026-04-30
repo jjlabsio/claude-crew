@@ -123,7 +123,21 @@ claude-crew 자체를 개발하는 사람 (이 repo 안에서 작업).
 
 `/crew-setup`에서 에이전트별 provider/model을 설정합니다. 설정하지 않은 에이전트는 `data/provider-catalog.json`의 `agent_defaults`를 따릅니다.
 
-기본값은 기존 에이전트 frontmatter 모델을 따르되, Dev와 CodeReviewer는 Codex `gpt-5.5 medium`을 사용합니다. Claude 모델은 `opus`, `sonnet`, `haiku` latest alias와 `claude-opus-4-7` 같은 버전 고정 ID를 모두 선택할 수 있습니다.
+권장 기본값은 에이전트 역할의 성격에 따라 세 그룹으로 구분됩니다.
+
+| 에이전트 | provider | model | reasoning | 역할 성격 |
+|----------|----------|-------|-----------|---------|
+| `techlead` | codex | gpt-5.5 | high | 판단/평가 — 아키텍처 방향 결정 |
+| `code-reviewer` | codex | gpt-5.5 | high | 판단/평가 — 코드 품질 판정 |
+| `pm` | codex | gpt-5.5 | medium | 계획/분석 — 요구사항 수집 |
+| `planner` | codex | gpt-5.5 | medium | 계획/분석 — 구현 계획 작성 |
+| `dev` | codex | gpt-5.5 | medium | 계획/분석 — 코드 구현 |
+| `plan-evaluator` | codex | gpt-5.4-mini | high | 실행/검증 — 계획 기준 충족 판정 |
+| `qa` | codex | gpt-5.4-mini | high | 실행/검증 — 빌드/테스트 실행 |
+| `researcher` | codex | gpt-5.4-mini | high | 실행/검증 — 외부 정보 조사 |
+| `explorer` | codex | gpt-5.3-codex-spark | low | 탐색 전용 — 코드베이스 검색 |
+
+Claude 모델은 `opus`, `sonnet`, `haiku` latest alias와 `claude-opus-4-7` 같은 버전 고정 ID를 모두 선택할 수 있습니다.
 
 Claude provider는 Claude Code `Agent`로 실행하고, Codex provider는 플러그인에 내장된 `scripts/crew-codex-companion.mjs` app-server runtime으로 실행합니다. 에이전트가 유저 질문이나 다른 에이전트 호출이 필요하면 직접 처리하지 않고 오케스트레이터가 이어받아 실행합니다.
 
