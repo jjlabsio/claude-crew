@@ -1,11 +1,14 @@
-import { readFile, writeFile } from "node:fs/promises";
+import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import { spawnSync } from "node:child_process";
 
 import { afterEach, describe, expect, test } from "vitest";
 
 import { cleanupTmpDir, mkTmpDir } from "../_helpers/fs.mjs";
-import { dispatch } from "../../scripts/lib/dispatch.mjs";
+import {
+  dispatch,
+  resolveAutoGitDiffInputs
+} from "../../scripts/lib/dispatch.mjs";
 
 let tmpDir;
 
@@ -34,18 +37,19 @@ function requestFixture() {
   };
 }
 
-async function writeRequest() {
+async function writeRequest(request = requestFixture()) {
   tmpDir = await mkTmpDir();
   const requestPath = join(tmpDir, "request.json");
-  await writeFile(requestPath, JSON.stringify(requestFixture()), "utf8");
+  await writeFile(requestPath, JSON.stringify(request), "utf8");
   return requestPath;
 }
 
-function runDispatch(args, env = {}) {
+function runDispatch(args, env = {}, options = {}) {
   return spawnSync(
     process.execPath,
-    ["scripts/crew-agent-runner.mjs", "dispatch", ...args],
+    [resolve("scripts/crew-agent-runner.mjs"), "dispatch", ...args],
     {
+      cwd: options.cwd ?? process.cwd(),
       encoding: "utf8",
       env: {
         ...process.env,
@@ -66,6 +70,25 @@ async function readLog(path) {
 }
 
 describe("crew-agent-runner dispatch CLI", () => {
+  test("replaces exact AUTO_GIT_DIFF input content without mutating other inputs", async () => {
+    const request = {
+      ...requestFixture(),
+      inputs: [
+        { path: ".crew/plans/task-123/diff.md", content: "AUTO_GIT_DIFF" },
+        { path: ".crew/plans/task-123/notes.md", content: "AUTO_GIT_DIFF plus notes" }
+      ]
+    };
+
+    const resolved = await resolveAutoGitDiffInputs(request, {
+      diff: "diff --git a/file.txt b/file.txt"
+    });
+
+    expect(resolved).not.toBe(request);
+    expect(resolved.inputs[0].content).toBe("diff --git a/file.txt b/file.txt");
+    expect(resolved.inputs[1].content).toBe("AUTO_GIT_DIFF plus notes");
+    expect(request.inputs[0].content).toBe("AUTO_GIT_DIFF");
+  });
+
   test("runs companion with a prompt file and returns AgentResult with agent_handle", async () => {
     const requestPath = await writeRequest();
     const logPath = join(tmpDir, "fake-companion.log");
@@ -96,12 +119,47 @@ describe("crew-agent-runner dispatch CLI", () => {
     expect(call.prompt).toContain("Implement the dispatch command.");
   });
 
+  test("expands AUTO_GIT_DIFF before rendering the Codex dispatch prompt", async () => {
+    const requestPath = await writeRequest({
+      ...requestFixture(),
+      inputs: [
+        {
+          path: ".crew/plans/task-123/diff.md",
+          content: "AUTO_GIT_DIFF"
+        }
+      ]
+    });
+    const logPath = join(tmpDir, "fake-companion.log");
+
+    const result = runDispatch(
+      ["--role", "dev", "--request-file", requestPath, "--json", "--no-checkpoint"],
+      { FAKE_COMPANION_RESPONSE: "complete", FAKE_COMPANION_LOG: logPath }
+    );
+
+    expect(result.status).toBe(0);
+
+    const [call] = await readLog(logPath);
+    expect(call.prompt).toContain("### .crew/plans/task-123/diff.md");
+    expect(call.prompt).toContain("# git diff");
+  });
+
   test("rejects claude provider roles with a dispatch-specific usage error", async () => {
     const requestPath = await writeRequest();
+    await mkdir(join(tmpDir, ".crew"), { recursive: true });
+    await writeFile(
+      join(tmpDir, ".crew", "config.json"),
+      JSON.stringify({
+        agent_defaults: {
+          qa: { provider: "claude", model: "sonnet" }
+        }
+      }),
+      "utf8"
+    );
 
     const result = runDispatch(
       ["--role", "qa", "--request-file", requestPath, "--json"],
-      { FAKE_COMPANION_RESPONSE: "complete" }
+      { FAKE_COMPANION_RESPONSE: "complete" },
+      { cwd: tmpDir }
     );
 
     expect(result.status).toBe(2);
