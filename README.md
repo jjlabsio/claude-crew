@@ -52,6 +52,17 @@ Claude Code에서:
 
 오케스트레이터가 시작되고 현황을 브리핑합니다.
 
+### 간단 작업 즉시 위임
+
+```
+/crew-do "로그인 에러 메시지 정리"
+/crew-do                         # active task가 있으면 해당 task를 실행
+```
+
+`/crew-do`는 기존 Dev 에이전트를 `direct` 모드로 호출해 작은 수정, 버그픽스, 테스트 실패 수정처럼 범위가 명확한 작업을 바로 위임합니다. Dev 기본 provider가 Codex이면 실제 코드 탐색, 수정, 검증은 Codex runtime에서 수행되고 Claude는 결과 요약과 후속 조율만 담당합니다.
+
+`/task`는 계속 기억/queue 관리 전용입니다. 저장된 태스크를 실행하려면 `/task work {id}`로 active 상태로 만든 뒤 `/crew-do`를 실행합니다.
+
 ### 태스크 관리
 
 ```
@@ -94,7 +105,7 @@ claude-crew는 **다른 프로젝트에 설치되어 사용되는 플러그인**
 
 이 plugin을 자기 프로젝트에 설치해서 SaaS 개발에 활용하는 일반 사용자.
 
-- 직접 호출하는 슬래시 명령: `/crew`, `/crew-setup`, `/task`, `/tasks`, `/crew-interview`, `/crew-plan`, `/crew-dev`.
+- 직접 호출하는 슬래시 명령: `/crew`, `/crew-setup`, `/crew-do`, `/task`, `/tasks`, `/crew-interview`, `/crew-plan`, `/crew-dev`.
 - 디버그용 직접 호출 가능 명령: `node scripts/crew-agent-runner.mjs resolve --role <role> --json` (provider/model/contract 통합 표 확인).
 - plugin이 설치된 위치(`~/.claude/plugins/...` 등)에 무관하게 동작 — plugin script가 자기 위치를 자동으로 인식.
 

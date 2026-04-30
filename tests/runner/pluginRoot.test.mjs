@@ -55,7 +55,7 @@ describe("plugin root paths", () => {
     const catalog = loadCatalog();
 
     expect(catalog.agent_defaults.planner).toMatchObject({
-      provider: "claude"
+      provider: "codex"
     });
   });
 
