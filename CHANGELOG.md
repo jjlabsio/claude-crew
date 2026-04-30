@@ -1,6 +1,18 @@
 # Changelog
 
 
+## v0.1.42
+
+[compare changes](https://github.com/jjlabsio/claude-crew/compare/v0.1.41...v0.1.42)
+
+### 🚀 Enhancements
+
+- Add crew-do direct dev mode ([#41](https://github.com/jjlabsio/claude-crew/pull/41))
+
+### ❤️ Contributors
+
+- Jaejin Song ([@jjlabsio](https://github.com/jjlabsio))
+
 ## v0.1.41
 
 [compare changes](https://github.com/jjlabsio/claude-crew/compare/v0.1.40...v0.1.41)
