@@ -1,10 +1,13 @@
 import { spawnSync } from "node:child_process";
-import { writeFile } from "node:fs/promises";
-import { join } from "node:path";
+import { mkdir, writeFile } from "node:fs/promises";
+import { dirname, join, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
 
 import { afterEach, describe, expect, test } from "vitest";
 
 import { cleanupTmpDir, mkTmpDir } from "../_helpers/fs.mjs";
+
+const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..", "..");
 
 let tmpDir;
 
@@ -37,17 +40,25 @@ async function writeRequest() {
   return requestPath;
 }
 
-function runPrepare(args) {
+function runPrepare(args, options = {}) {
   return spawnSync(
     process.execPath,
-    ["scripts/crew-agent-runner.mjs", "prepare", ...args],
-    { encoding: "utf8" }
+    [join(REPO_ROOT, "scripts", "crew-agent-runner.mjs"), "prepare", ...args],
+    { encoding: "utf8", ...options }
   );
 }
 
 describe("crew-agent-runner prepare CLI", () => {
   test("returns an agent action with rendered prompt for Claude provider roles", async () => {
     const requestPath = await writeRequest();
+    await mkdir(join(tmpDir, ".crew"), { recursive: true });
+    await writeFile(
+      join(tmpDir, ".crew", "config.json"),
+      JSON.stringify({
+        providers: { "plan-evaluator": { provider: "claude", model: "sonnet" } }
+      }),
+      "utf8"
+    );
 
     const result = runPrepare([
       "--role",
@@ -55,7 +66,7 @@ describe("crew-agent-runner prepare CLI", () => {
       "--request-file",
       requestPath,
       "--json"
-    ]);
+    ], { cwd: tmpDir });
 
     expect(result.status).toBe(0);
     expect(result.stderr).toBe("");

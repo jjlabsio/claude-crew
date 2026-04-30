@@ -1,6 +1,7 @@
 import { mkdir, readFile, writeFile } from "node:fs/promises";
-import { join, resolve } from "node:path";
+import { dirname, join, resolve } from "node:path";
 import { spawnSync } from "node:child_process";
+import { fileURLToPath } from "node:url";
 
 import { afterEach, describe, expect, test } from "vitest";
 
@@ -9,6 +10,8 @@ import {
   dispatch,
   resolveAutoGitDiffInputs
 } from "../../scripts/lib/dispatch.mjs";
+
+const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..", "..");
 
 let tmpDir;
 
@@ -47,15 +50,16 @@ async function writeRequest(request = requestFixture()) {
 function runDispatch(args, env = {}, options = {}) {
   return spawnSync(
     process.execPath,
-    [resolve("scripts/crew-agent-runner.mjs"), "dispatch", ...args],
+    [join(REPO_ROOT, "scripts", "crew-agent-runner.mjs"), "dispatch", ...args],
     {
       cwd: options.cwd ?? process.cwd(),
       encoding: "utf8",
       env: {
         ...process.env,
-        CREW_COMPANION_NODE_BIN: resolve("tests/_helpers/fakeCompanion.mjs"),
+        CREW_COMPANION_NODE_BIN: resolve(REPO_ROOT, "tests/_helpers/fakeCompanion.mjs"),
         ...env
-      }
+      },
+      ...options
     }
   );
 }
@@ -149,9 +153,7 @@ describe("crew-agent-runner dispatch CLI", () => {
     await writeFile(
       join(tmpDir, ".crew", "config.json"),
       JSON.stringify({
-        agent_defaults: {
-          qa: { provider: "claude", model: "sonnet" }
-        }
+        providers: { qa: { provider: "claude", model: "sonnet" } }
       }),
       "utf8"
     );
