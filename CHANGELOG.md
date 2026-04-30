@@ -1,6 +1,18 @@
 # Changelog
 
 
+## v0.1.48
+
+[compare changes](https://github.com/jjlabsio/claude-crew/compare/v0.1.47...v0.1.48)
+
+### 🩹 Fixes
+
+- Codex 샌드박스 네트워크 제한으로 패키지 설치 불가 ([#50](https://github.com/jjlabsio/claude-crew/pull/50), [#52](https://github.com/jjlabsio/claude-crew/pull/52))
+
+### ❤️ Contributors
+
+- Jaejin Song ([@jjlabsio](https://github.com/jjlabsio))
+
 ## v0.1.47
 
 [compare changes](https://github.com/jjlabsio/claude-crew/compare/v0.1.46...v0.1.47)
