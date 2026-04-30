@@ -1,6 +1,18 @@
 # Changelog
 
 
+## v0.1.43
+
+[compare changes](https://github.com/jjlabsio/claude-crew/compare/v0.1.42...v0.1.43)
+
+### 🚀 Enhancements
+
+- **catalog:** 에이전트 모델 high reasoning 상향 + README 영문화 ([#42](https://github.com/jjlabsio/claude-crew/pull/42))
+
+### ❤️ Contributors
+
+- Jaejin Song ([@jjlabsio](https://github.com/jjlabsio))
+
 ## v0.1.42
 
 [compare changes](https://github.com/jjlabsio/claude-crew/compare/v0.1.41...v0.1.42)
