@@ -1,7 +1,8 @@
-import { spawn } from "node:child_process";
+import { execFile, spawn } from "node:child_process";
 import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { basename, join } from "node:path";
+import { promisify } from "node:util";
 import { fileURLToPath } from "node:url";
 
 import { persistCrewArtifact, ArtifactPersistError } from "./artifacts.mjs";
@@ -11,6 +12,8 @@ import { renderPrompt } from "./render.mjs";
 const DEFAULT_COMPANION = fileURLToPath(
   new URL("../crew-codex-companion.mjs", import.meta.url)
 );
+const execFileAsync = promisify(execFile);
+const AUTO_GIT_DIFF = "AUTO_GIT_DIFF";
 const AGENT_RESULT_STATUSES = new Set([
   "complete",
   "blocked_on_user",
@@ -33,6 +36,70 @@ export function formatDispatchProviderGuardMessage(role, provider) {
   return `dispatch is for Codex provider only. Resolved provider for role '${role}' is '${provider}'. Use 'render' + Agent tool for Claude provider (see crew-agent-runner SKILL.md).`;
 }
 
+export async function resolveAutoGitDiffInputs(request, options = {}) {
+  if (!hasAutoGitDiffInput(request)) {
+    return request;
+  }
+
+  const diff =
+    options.diff ??
+    (await generateAutoGitDiff({ cwd: options.cwd ?? process.cwd() }));
+
+  return {
+    ...request,
+    inputs: request.inputs.map((item) => {
+      if (item?.content !== AUTO_GIT_DIFF) {
+        return item;
+      }
+
+      return {
+        ...item,
+        content: diff
+      };
+    })
+  };
+}
+
+export function hasAutoGitDiffInput(request) {
+  return Array.isArray(request?.inputs)
+    ? request.inputs.some((item) => item?.content === AUTO_GIT_DIFF)
+    : false;
+}
+
+export async function generateAutoGitDiff({ cwd = process.cwd() } = {}) {
+  await git(["rev-parse", "--is-inside-work-tree"], cwd);
+
+  const [staged, unstaged] = await Promise.all([
+    git(["diff", "--no-ext-diff", "--staged"], cwd),
+    git(["diff", "--no-ext-diff"], cwd)
+  ]);
+
+  const sections = [
+    ["staged", staged],
+    ["unstaged", unstaged]
+  ]
+    .filter(([, content]) => content.trim().length > 0)
+    .map(([label, content]) => `# git diff (${label})\n${content.trimEnd()}`);
+
+  if (sections.length > 0) {
+    return sections.join("\n\n");
+  }
+
+  try {
+    const previousCommitDiff = await git(
+      ["diff", "--no-ext-diff", "HEAD~1"],
+      cwd
+    );
+    if (previousCommitDiff.trim().length > 0) {
+      return `# git diff (HEAD~1)\n${previousCommitDiff.trimEnd()}`;
+    }
+  } catch {
+    // Repositories with fewer than two commits have no HEAD~1 fallback.
+  }
+
+  return "# git diff\nNo git diff available.";
+}
+
 export async function dispatch(input) {
   if (input.resolved?.provider !== "codex") {
     throw new DispatchError(
@@ -46,6 +113,7 @@ export async function dispatch(input) {
 
   const companion = resolveCompanion(input);
   await assertResumeCandidate(input.resumeHandle, companion);
+  const request = await resolveAutoGitDiffInputs(input.request);
 
   const tmpDir = await mkdtemp(join(tmpdir(), "claude-crew-dispatch-"));
   const promptFile = join(tmpDir, `${input.role}-prompt.md`);
@@ -55,7 +123,7 @@ export async function dispatch(input) {
       promptFile,
       renderPrompt({
         role: input.role,
-        request: input.request,
+        request,
         contract: input.contract
       }),
       "utf8"
@@ -135,6 +203,15 @@ export async function runCompanion(companion, args) {
       });
     });
   });
+}
+
+async function git(args, cwd) {
+  const { stdout } = await execFileAsync("git", args, {
+    cwd,
+    encoding: "utf8",
+    maxBuffer: 50 * 1024 * 1024
+  });
+  return stdout;
 }
 
 async function assertResumeCandidate(resumeHandle, companion) {
